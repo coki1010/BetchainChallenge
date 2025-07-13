@@ -1,5 +1,3 @@
-// pages/dashboard/amateur-tipster-dashboard.jsx
-
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useRouter } from 'next/router';
@@ -17,14 +15,29 @@ const AmateurTipsterDashboard = () => {
 
   useEffect(() => {
     const fetchData = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData?.session?.user) {
+        router.push('/');
+        return;
+      }
+
+      const user = sessionData.session.user;
       setUser(user);
 
-      const { data: profile } = await supabase.from('profiles').select('balance, pro_request').eq('id', user.id).single();
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('balance, pro_request')
+        .eq('id', user.id)
+        .single();
+
       setBalance(profile?.balance || 10000);
 
-      const { data: userBets } = await supabase.from('bets').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
+      const { data: userBets } = await supabase
+        .from('bets')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
       setBets(userBets || []);
 
       const wins = userBets?.filter((b) => b.status === 'win').length || 0;
