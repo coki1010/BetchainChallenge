@@ -2,7 +2,84 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useRouter } from 'next/router';
 
-const translations = { /* ... tvoji prijevodi ostaju */ };
+const translations = {
+  en: {
+    dashboard: 'Dashboard',
+    logout: 'Logout',
+    noSub: 'You do not have an active subscription.',
+    activate: 'Activate Subscription',
+    author: 'Author',
+    analysis: 'Analysis',
+    stake: 'Stake',
+    odds: 'Odds',
+    status: 'Status',
+    pending: 'Pending',
+    win: 'Win',
+    lose: 'Lose',
+    contact: 'Contact Us',
+    name: 'Your Name',
+    email: 'Your Email',
+    message: 'Message',
+    send: 'Send Message',
+  },
+  hr: {
+    dashboard: 'Nadzorna ploča',
+    logout: 'Odjava',
+    noSub: 'Nemate aktivnu pretplatu.',
+    activate: 'Aktiviraj pretplatu',
+    author: 'Autor',
+    analysis: 'Analiza',
+    stake: 'Ulog',
+    odds: 'Koeficijent',
+    status: 'Status',
+    pending: 'Na čekanju',
+    win: 'Dobitno',
+    lose: 'Gubitno',
+    contact: 'Kontaktirajte nas',
+    name: 'Vaše ime',
+    email: 'Vaš email',
+    message: 'Poruka',
+    send: 'Pošalji poruku',
+  },
+  srb: {
+    dashboard: 'Kontrolna tabla',
+    logout: 'Odjava',
+    noSub: 'Nemate aktivnu pretplatu.',
+    activate: 'Aktiviraj pretplatu',
+    author: 'Autor',
+    analysis: 'Analiza',
+    stake: 'Ulog',
+    odds: 'Kvota',
+    status: 'Status',
+    pending: 'Na čekanju',
+    win: 'Dobitno',
+    lose: 'Gubitno',
+    contact: 'Kontakt',
+    name: 'Vaše ime',
+    email: 'Vaš email',
+    message: 'Poruka',
+    send: 'Pošalji',
+  },
+  sl: {
+    dashboard: 'Nadzorna plošča',
+    logout: 'Odjava',
+    noSub: 'Nimate aktivne naročnine.',
+    activate: 'Aktiviraj naročnino',
+    author: 'Avtor',
+    analysis: 'Analiza',
+    stake: 'Vložek',
+    odds: 'Kvota',
+    status: 'Status',
+    pending: 'V teku',
+    win: 'Dobitek',
+    lose: 'Izguba',
+    contact: 'Kontakt',
+    name: 'Vaše ime',
+    email: 'Vaš email',
+    message: 'Sporočilo',
+    send: 'Pošlji sporočilo',
+  }
+};
 
 const SubscriberDashboard = () => {
   const router = useRouter();
@@ -15,7 +92,7 @@ const SubscriberDashboard = () => {
   const [newComments, setNewComments] = useState({});
   const [searchTerm, setSearchTerm] = useState('');
 
-  const t = translations[lang];
+  const t = translations[lang] || translations['en'];
 
   useEffect(() => {
     const storedLang = localStorage.getItem('language');
