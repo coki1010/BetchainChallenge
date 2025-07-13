@@ -2,85 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useRouter } from 'next/router';
 
-const translations = {
-  en: {
-    dashboard: 'Dashboard',
-    logout: 'Logout',
-    noSub: 'You do not have an active subscription.',
-    activate: 'Activate Subscription',
-    author: 'Author',
-    analysis: 'Analysis',
-    stake: 'Stake',
-    odds: 'Odds',
-    status: 'Status',
-    pending: 'Pending',
-    win: 'Win',
-    lose: 'Lose',
-    contact: 'Contact Us',
-    name: 'Your Name',
-    email: 'Your Email',
-    message: 'Message',
-    send: 'Send Message',
-  },
-  hr: {
-    dashboard: 'Nadzorna ploča',
-    logout: 'Odjava',
-    noSub: 'Nemate aktivnu pretplatu.',
-    activate: 'Aktiviraj pretplatu',
-    author: 'Autor',
-    analysis: 'Analiza',
-    stake: 'Ulog',
-    odds: 'Koeficijent',
-    status: 'Status',
-    pending: 'Na čekanju',
-    win: 'Dobitno',
-    lose: 'Gubitno',
-    contact: 'Kontaktirajte nas',
-    name: 'Vaše ime',
-    email: 'Vaš email',
-    message: 'Poruka',
-    send: 'Pošalji poruku',
-  },
-  srb: {
-    dashboard: 'Kontrolna tabla',
-    logout: 'Odjava',
-    noSub: 'Nemate aktivnu pretplatu.',
-    activate: 'Aktiviraj pretplatu',
-    author: 'Autor',
-    analysis: 'Analiza',
-    stake: 'Ulog',
-    odds: 'Kvota',
-    status: 'Status',
-    pending: 'Na čekanju',
-    win: 'Dobitno',
-    lose: 'Gubitno',
-    contact: 'Kontakt',
-    name: 'Vaše ime',
-    email: 'Vaš email',
-    message: 'Poruka',
-    send: 'Pošalji',
-  },
-  sl: {
-    dashboard: 'Nadzorna plošča',
-    logout: 'Odjava',
-    noSub: 'Nimate aktivne naročnine.',
-    activate: 'Aktiviraj naročnino',
-    author: 'Avtor',
-    analysis: 'Analiza',
-    stake: 'Vložek',
-    odds: 'Kvota',
-    status: 'Status',
-    pending: 'V teku',
-    win: 'Dobitek',
-    lose: 'Izguba',
-    contact: 'Kontakt',
-    name: 'Vaše ime',
-    email: 'Vaš email',
-    message: 'Sporočilo',
-    send: 'Pošlji sporočilo',
-  }
-};
-
 const SubscriberDashboard = () => {
   const router = useRouter();
   const [user, setUser] = useState(null);
@@ -91,8 +12,8 @@ const SubscriberDashboard = () => {
   const [comments, setComments] = useState({});
   const [newComments, setNewComments] = useState({});
   const [searchTerm, setSearchTerm] = useState('');
-
-  const t = translations[lang] || translations['en'];
+  const [proRankings, setProRankings] = useState([]);
+  const [amateurRankings, setAmateurRankings] = useState([]);
 
   useEffect(() => {
     const storedLang = localStorage.getItem('language');
@@ -108,7 +29,7 @@ const SubscriberDashboard = () => {
 
       const { data: betsData } = await supabase
         .from('bets')
-        .select('*, profiles(nickname)')
+        .select('*, profiles(id, nickname, role)')
         .order('created_at', { ascending: false });
       setBets(betsData || []);
 
@@ -128,21 +49,31 @@ const SubscriberDashboard = () => {
         commentMap[c.bet_id].push(c);
       });
       setComments(commentMap);
+
+      // Rankings
+      const { data: allProfiles } = await supabase.from('profiles').select('id, nickname, role');
+      const balances = {};
+      betsData.forEach(bet => {
+        const uid = bet.user_id;
+        if (!balances[uid]) balances[uid] = 10000;
+        if (bet.status === 'win') {
+          balances[uid] += bet.stake * bet.total_odds;
+        } else if (bet.status === 'lose') {
+          balances[uid] -= bet.stake;
+        }
+      });
+      const pro = [], amateur = [];
+      allProfiles.forEach(p => {
+        const saldo = balances[p.id] || 10000;
+        if (p.role === 'pro_tipster') pro.push({ ...p, saldo });
+        if (p.role === 'amateur_tipster') amateur.push({ ...p, saldo });
+      });
+      setProRankings(pro.sort((a, b) => b.saldo - a.saldo));
+      setAmateurRankings(amateur.sort((a, b) => b.saldo - a.saldo));
     };
 
     fetchData();
   }, []);
-
-  const handleLanguageChange = (e) => {
-    const newLang = e.target.value;
-    setLang(newLang);
-    localStorage.setItem('language', newLang);
-  };
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push('/');
-  };
 
   const handleLike = async (betId) => {
     if (!user) return;
@@ -159,113 +90,92 @@ const SubscriberDashboard = () => {
     const text = newComments[betId].trim();
     if (!text) return;
     await supabase.from('comments').insert({ user_id: user.id, bet_id: betId, text });
-    setNewComments((prev) => ({ ...prev, [betId]: '' }));
     const { data: newComment } = await supabase.from('comments').select('*, profiles(nickname)').order('created_at', { ascending: false }).limit(1);
     setComments((prev) => ({
       ...prev,
       [betId]: [...(prev[betId] || []), newComment[0]]
     }));
+    setNewComments((prev) => ({ ...prev, [betId]: '' }));
   };
 
   const filteredBets = bets.filter(bet =>
-    bet.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     bet.profiles?.nickname?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const renderBet = (bet) => (
+    <div key={bet.id} className="bg-[#1a1a1a] p-4 rounded-xl">
+      <p className="text-sm text-gray-400">{new Date(bet.created_at).toLocaleString()}</p>
+      <p className="text-lg font-bold mt-1">{bet.title}</p>
+      <p className="mt-1">Autor: <span className="text-blue-400">{bet.profiles?.nickname || 'Nepoznat'}</span></p>
+      <p className="mt-1">Analiza: {bet.analysis}</p>
+      <p className="mt-1">Ulog: €{bet.stake} | Kvota: {bet.total_odds}</p>
+      <p className="mt-2 font-semibold">Status: {bet.status}</p>
+      <div className="mt-3">
+        <button onClick={() => handleLike(bet.id)} className="text-blue-400 text-sm">
+          {likes[bet.id] ? '❤️ Sviđa mi se' : '🤍 Like'}
+        </button>
+      </div>
+      <div className="mt-3">
+        <input
+          type="text"
+          value={newComments[bet.id] || ''}
+          onChange={(e) => setNewComments((prev) => ({ ...prev, [bet.id]: e.target.value }))}
+          placeholder="Dodaj komentar..."
+          className="w-full p-2 bg-[#2a2a2a] rounded mb-2"
+        />
+        <button onClick={() => handleCommentSubmit(bet.id)} className="text-sm text-green-400">Pošalji</button>
+        <div className="mt-2">
+          {(comments[bet.id] || []).map((c) => (
+            <p key={c.id} className="text-sm text-gray-300">
+              <strong>{c.profiles?.nickname || 'Korisnik'}:</strong> {c.text}
+            </p>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  if (!hasSubscription) {
+    return (
+      <div className="p-6 text-white">
+        <h2 className="text-lg">Nemate aktivnu pretplatu.</h2>
+        <a href="https://buy.stripe.com/cNi7sL1cr9NFaka2pg9R601" target="_blank" rel="noopener noreferrer" className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded inline-block mt-4">
+          Aktiviraj pretplatu
+        </a>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#0f0f0f] text-white p-6">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">{t.dashboard}</h1>
+        <h1 className="text-2xl font-bold">Dashboard</h1>
         <div className="flex gap-4 items-center">
           <input
             type="text"
-            placeholder="Search..."
+            placeholder="Pretraži tipstera..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="bg-[#1a1a1a] text-white px-2 py-1 rounded"
           />
-          <select value={lang} onChange={handleLanguageChange} className="bg-[#1a1a1a] text-white px-2 py-1 rounded">
-            <option value="en">EN</option>
-            <option value="hr">HR</option>
-            <option value="srb">SRB</option>
-            <option value="sl">SLO</option>
-          </select>
-          <button onClick={handleLogout} className="bg-red-600 hover:bg-red-700 px-3 py-1 rounded">{t.logout}</button>
         </div>
       </div>
 
-      {!hasSubscription ? (
-        <div className="bg-[#1a1a1a] p-6 rounded-xl text-center">
-          <p className="text-lg mb-4">{t.noSub}</p>
-          <a href="https://buy.stripe.com/cNi7sL1cr9NFaka2pg9R601" target="_blank" rel="noopener noreferrer" className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded">
-            {t.activate}
-          </a>
-        </div>
-      ) : (
-        <div className="space-y-6">
-          {filteredBets.map((bet) => (
-            <div key={bet.id} className="bg-[#1a1a1a] p-4 rounded-xl">
-              <p className="text-sm text-gray-400">{new Date(bet.created_at).toLocaleString()}</p>
-              <p className="text-lg font-bold mt-1">{bet.title}</p>
-              <p className="mt-1">{t.author}: <span className="text-blue-400">{bet.profiles?.nickname || 'Unknown'}</span></p>
-              <p className="mt-1">{t.analysis}: {bet.analysis}</p>
-              <p className="mt-1">{t.stake}: €{bet.stake} | {t.odds}: {bet.total_odds}</p>
-              <p className="mt-2 font-semibold">{t.status}: {bet.status === 'pending' ? t.pending : bet.status === 'win' ? t.win : t.lose}</p>
-              <div className="mt-3">
-                <button onClick={() => handleLike(bet.id)} className="text-blue-400 text-sm">
-                  {likes[bet.id] ? '❤️ Liked' : '🤍 Like'}
-                </button>
-              </div>
-              <div className="mt-3">
-                <input
-                  type="text"
-                  value={newComments[bet.id] || ''}
-                  onChange={(e) => setNewComments((prev) => ({ ...prev, [bet.id]: e.target.value }))}
-                  placeholder="Add a comment..."
-                  className="w-full p-2 bg-[#2a2a2a] rounded mb-2"
-                />
-                <button onClick={() => handleCommentSubmit(bet.id)} className="text-sm text-green-400">Submit</button>
-                <div className="mt-2">
-                  {(comments[bet.id] || []).map((c) => (
-                    <p key={c.id} className="text-sm text-gray-300">
-                      <strong>{c.profiles?.nickname || 'User'}:</strong> {c.text}
-                    </p>
-                  ))}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      <h2 className="text-xl font-semibold mb-2">🏆 Rang lista PRO tipstera</h2>
+      {proRankings.map((p, idx) => (
+        <p key={p.id}>{idx + 1}. {p.nickname} - €{p.saldo.toFixed(2)}</p>
+      ))}
 
-      <div id="kontakt" className="mt-16 bg-[#1a1a1a] p-6 rounded-xl text-white">
-        <h2 className="text-xl font-semibold mb-4">{t.contact}</h2>
-        <form onSubmit={async (e) => {
-          e.preventDefault();
-          const form = e.target;
-          const formData = {
-            name: form.name.value,
-            email: form.email.value,
-            message: form.message.value,
-          };
-          const response = await fetch('/api/send-contact-email', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(formData),
-          });
-          if (response.ok) {
-            alert('Message sent!');
-            form.reset();
-          } else {
-            alert('Error sending message.');
-          }
-        }} className="space-y-4">
-          <input type="text" name="name" placeholder={t.name} required className="w-full p-2 bg-[#2a2a2a] rounded" />
-          <input type="email" name="email" placeholder={t.email} required className="w-full p-2 bg-[#2a2a2a] rounded" />
-          <textarea name="message" placeholder={t.message} required className="w-full p-2 bg-[#2a2a2a] rounded"></textarea>
-          <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">{t.send}</button>
-        </form>
-      </div>
+      <h2 className="text-xl font-semibold mt-6 mb-2">🎯 Rang lista amaterskih tipstera</h2>
+      {amateurRankings.map((p, idx) => (
+        <p key={p.id}>{idx + 1}. {p.nickname} - €{p.saldo.toFixed(2)}</p>
+      ))}
+
+      <h2 className="text-xl font-semibold mt-6 mb-2">📄 Listići PRO tipstera</h2>
+      {filteredBets.filter(b => b.profiles?.role === 'pro_tipster').map(renderBet)}
+
+      <h2 className="text-xl font-semibold mt-6 mb-2">📄 Listići amaterskih tipstera</h2>
+      {filteredBets.filter(b => b.profiles?.role === 'amateur_tipster').map(renderBet)}
     </div>
   );
 };
