@@ -8,7 +8,7 @@ import { v4 as uuidv4 } from 'uuid';
 export default function AmateurTipsterDashboard() {
   const [userId, setUserId] = useState(null);
   const [saldo, setSaldo] = useState(10000);
-  const [parovi, setParovi] = useState([{ par: '', kvota: '' }]);
+  const [parovi, setParovi] = useState([{ par: '', kvota: '', tip: '' }]);
   const [ulog, setUlog] = useState('');
   const [analiza, setAnaliza] = useState('');
   const [dobitan, setDobitan] = useState(false);
@@ -33,7 +33,7 @@ export default function AmateurTipsterDashboard() {
   }, []);
 
   const fetchListici = async (id) => {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('bets')
       .select('*')
       .eq('user_id', id);
@@ -54,7 +54,7 @@ export default function AmateurTipsterDashboard() {
   };
 
   const fetchRangLista = async () => {
-    const { data, error } = await supabase.rpc('get_amateur_rang_lista');
+    const { data } = await supabase.rpc('get_amateur_rang_lista');
     if (data) setRangLista(data);
   };
 
@@ -73,7 +73,7 @@ export default function AmateurTipsterDashboard() {
   };
 
   const handleDodajPar = () => {
-    setParovi([...parovi, { par: '', kvota: '' }]);
+    setParovi([...parovi, { par: '', kvota: '', tip: '' }]);
   };
 
   const handleChangePar = (index, field, value) => {
@@ -87,7 +87,7 @@ export default function AmateurTipsterDashboard() {
   };
 
   const handleUnosListica = async () => {
-    const combinedParovi = parovi.map(p => `${p.par} (${p.kvota})`).join(', ');
+    const combinedParovi = parovi.map(p => `${p.par} (${p.tip}) - ${p.kvota}`).join(', ');
     const kvota = parseFloat(ukupnaKvota());
     const { error } = await supabase.from('bets').insert([
       {
@@ -97,12 +97,14 @@ export default function AmateurTipsterDashboard() {
         kvota,
         ulog: parseFloat(ulog),
         analiza,
-        dobitan
+        dobitan,
+        role: 'amateur_tipster'
       }
     ]);
     if (!error) {
       fetchListici(userId);
-      setParovi([{ par: '', kvota: '' }]);
+      fetchSviListici();
+      setParovi([{ par: '', kvota: '', tip: '' }]);
       setUlog('');
       setAnaliza('');
       setDobitan(false);
@@ -121,6 +123,7 @@ export default function AmateurTipsterDashboard() {
         {parovi.map((p, index) => (
           <div key={index} className="flex gap-2 mb-2">
             <input placeholder="Par" value={p.par} onChange={e => handleChangePar(index, 'par', e.target.value)} className="p-2 bg-gray-800 rounded" />
+            <input placeholder="Tip" value={p.tip} onChange={e => handleChangePar(index, 'tip', e.target.value)} className="p-2 bg-gray-800 rounded" />
             <input placeholder="Kvota" type="number" step="0.01" value={p.kvota} onChange={e => handleChangePar(index, 'kvota', e.target.value)} className="p-2 bg-gray-800 rounded" />
           </div>
         ))}
