@@ -96,7 +96,7 @@ export default function AmateurTipsterDashboard() {
         id: uuidv4(),
         user_id: userId,
         stake: parseFloat(ulog),
-        odds: kvota,
+        total_odds: kvota,
         analysis: analiza,
         status,
         created_at,
