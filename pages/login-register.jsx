@@ -124,7 +124,7 @@ const LoginRegister = () => {
 
       if (!profile?.role) return router.push('/');
 
-      if (profile.role === 'admin') router.push('/admin-dashboard');
+      if (profile.role === 'admin') router.push('/dashboard/admin');
       else if (profile.role === 'subscriber') router.push('/dashboard/subscriber-dashboard');
       else if (profile.role === 'amateur_tipster') router.push('/dashboard/amateur-tipster-dashboard');
       else if (profile.role === 'pro_tipster') router.push('/dashboard/pro-tipster-dashboard');
