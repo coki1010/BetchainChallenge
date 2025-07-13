@@ -39,15 +39,15 @@ export default function AmateurTipsterDashboard() {
       .eq('user_id', id);
     if (data) {
       setMojiListici(data);
-      const pogodjeni = data.filter(b => b.dobitan).length;
+      const pogodjeni = data.filter(b => b.status === 'won').length;
       const postotak = data.length > 0 ? Math.round((pogodjeni / data.length) * 100) : 0;
       setProlaznost(postotak);
       setMozeZatraziti(postotak >= 70 && data.length >= 10);
 
       let currentSaldo = 10000;
       data.forEach(bet => {
-        if (bet.dobitan) currentSaldo += bet.ulog * bet.kvota;
-        else currentSaldo -= bet.ulog;
+        if (bet.status === 'won') currentSaldo += bet.stake * bet.odds;
+        else currentSaldo -= bet.stake;
       });
       setSaldo(currentSaldo);
     }
@@ -87,20 +87,24 @@ export default function AmateurTipsterDashboard() {
   };
 
   const handleUnosListica = async () => {
-    const combinedParovi = parovi.map(p => `${p.par} (${p.tip}) - ${p.kvota}`).join(', ');
     const kvota = parseFloat(ukupnaKvota());
+    const status = dobitan ? 'won' : 'lost';
+    const created_at = new Date().toISOString();
+
     const { error } = await supabase.from('bets').insert([
       {
         id: uuidv4(),
         user_id: userId,
-        parovi: combinedParovi,
-        kvota,
-        ulog: parseFloat(ulog),
-        analiza,
-        dobitan,
-        role: 'amateur_tipster'
+        stake: parseFloat(ulog),
+        odds: kvota,
+        analysis: analiza,
+        status,
+        created_at,
+        role: 'amateur_tipster',
+        pairs: parovi
       }
     ]);
+
     if (!error) {
       fetchListici(userId);
       fetchSviListici();
@@ -108,6 +112,8 @@ export default function AmateurTipsterDashboard() {
       setUlog('');
       setAnaliza('');
       setDobitan(false);
+    } else {
+      console.error("Greška prilikom unosa:", error.message);
     }
   };
 
@@ -141,11 +147,11 @@ export default function AmateurTipsterDashboard() {
         <h2 className="text-xl font-bold mb-2">Moji listići</h2>
         {mojiListici.map(l => (
           <div key={l.id} className="border-b border-gray-600 py-2">
-            <p><strong>Parovi:</strong> {l.parovi}</p>
-            <p><strong>Kvota:</strong> {l.kvota}</p>
-            <p><strong>Ulog:</strong> {l.ulog}</p>
-            <p><strong>Dobitan:</strong> {l.dobitan ? 'Da' : 'Ne'}</p>
-            <p><strong>Analiza:</strong> {l.analiza}</p>
+            <p><strong>Parovi:</strong> {l.pairs.map(p => `${p.par} (${p.tip}) - ${p.kvota}`).join(', ')}</p>
+            <p><strong>Kvota:</strong> {l.odds}</p>
+            <p><strong>Ulog:</strong> {l.stake}</p>
+            <p><strong>Dobitan:</strong> {l.status === 'won' ? 'Da' : 'Ne'}</p>
+            <p><strong>Analiza:</strong> {l.analysis}</p>
           </div>
         ))}
       </div>
@@ -161,7 +167,7 @@ export default function AmateurTipsterDashboard() {
         <h2 className="text-xl font-bold mb-2">Pro tipster listići</h2>
         {proListici.map((l, i) => (
           <div key={i} className="border-b border-gray-600 py-2">
-            <p>{l.parovi} - Kvota: {l.kvota} - Ulog: {l.ulog}</p>
+            <p>{l.pairs.map(p => `${p.par} (${p.tip}) - ${p.kvota}`).join(', ')} - Kvota: {l.odds} - Ulog: {l.stake}</p>
           </div>
         ))}
       </div>
@@ -170,7 +176,7 @@ export default function AmateurTipsterDashboard() {
         <h2 className="text-xl font-bold mb-2">Amaterski tipsteri listići</h2>
         {sviListici.map((l, i) => (
           <div key={i} className="border-b border-gray-600 py-2">
-            <p>{l.parovi} - Kvota: {l.kvota} - Ulog: {l.ulog}</p>
+            <p>{l.pairs.map(p => `${p.par} (${p.tip}) - ${p.kvota}`).join(', ')} - Kvota: {l.odds} - Ulog: {l.stake}</p>
           </div>
         ))}
       </div>
