@@ -1,3 +1,5 @@
+
+// SubscriberDashboard.jsx
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useRouter } from 'next/router';
@@ -50,7 +52,7 @@ const SubscriberDashboard = () => {
 
       const { data: commentsData } = await supabase
         .from('comments')
-        .select('id, user_id, bet_id, text, created_at, profiles(nickname)')
+        .select('*, profiles(nickname)')
         .order('created_at', { ascending: true });
       const commentMap = {};
       commentsData?.forEach((c) => {
@@ -96,11 +98,11 @@ const SubscriberDashboard = () => {
   const handleCommentSubmit = async (betId) => {
     const text = newComments[betId]?.trim();
     if (!text) return;
-    const { error } = await supabase.from('comments').insert({ user_id: user.id, bet_id: betId, text });
+    const { error } = await supabase.from('comments').insert({ user_id: user.id, bet_id: betId, content: text });
     if (!error) {
       const { data: updated } = await supabase
         .from('comments')
-        .select('id, user_id, bet_id, text, created_at, profiles(nickname)')
+        .select('*, profiles(nickname)')
         .eq('bet_id', betId)
         .order('created_at', { ascending: true });
       setComments(prev => ({ ...prev, [betId]: updated }));
@@ -146,7 +148,7 @@ const SubscriberDashboard = () => {
         <div className="mt-2 space-y-1">
           {(comments[bet.id] || []).map((c) => (
             <div key={c.id} className="text-sm text-gray-300 flex justify-between items-center">
-              <p><strong>{c.profiles?.nickname || 'Korisnik'}:</strong> {c.text}</p>
+              <p><strong>{c.profiles?.nickname || 'Korisnik'}:</strong> {c.content}</p>
               {c.user_id === user.id && (
                 <button onClick={() => handleCommentDelete(c.id, bet.id)} className="text-red-400 text-xs ml-2">Obriši</button>
               )}
