@@ -11,6 +11,7 @@ export default function AmateurTipsterDashboard() {
   const [parovi, setParovi] = useState([{ par: '', kvota: '', tip: '' }]);
   const [ulog, setUlog] = useState('');
   const [analiza, setAnaliza] = useState('');
+  const [naslov, setNaslov] = useState('');
   const [status, setStatus] = useState('pending');
   const [mojiListici, setMojiListici] = useState([]);
   const [sviListici, setSviListici] = useState([]);
@@ -24,7 +25,6 @@ export default function AmateurTipsterDashboard() {
     const fetchUser = async () => {
       const { data: { user }, error } = await supabase.auth.getUser();
       if (!user) return router.push('/');
-      console.log("Prijavljeni korisnik:", user);
       setUserId(user.id);
       fetchListici(user.id);
       fetchRangLista();
@@ -100,6 +100,7 @@ export default function AmateurTipsterDashboard() {
       {
         id: uuidv4(),
         user_id: userId,
+        title: naslov,
         stake: parseFloat(ulog),
         total_odds: kvota,
         analysis: analiza,
@@ -117,10 +118,20 @@ export default function AmateurTipsterDashboard() {
       setUlog('');
       setAnaliza('');
       setStatus('pending');
+      setNaslov('');
     } else {
       console.error("Greška prilikom unosa:", error.message);
       alert("Greška prilikom unosa: " + error.message);
     }
+  };
+
+  const handleStatusUpdate = async (id, newStatus) => {
+    const { error } = await supabase
+      .from('bets')
+      .update({ status: newStatus })
+      .eq('id', id)
+      .eq('user_id', userId);
+    if (!error) fetchListici(userId);
   };
 
   return (
@@ -132,6 +143,7 @@ export default function AmateurTipsterDashboard() {
 
       <div className="my-4">
         <h2 className="text-xl font-bold">Novi listić</h2>
+        <input placeholder="Naslov listića" value={naslov} onChange={e => setNaslov(e.target.value)} className="w-full p-2 bg-gray-800 rounded my-2" />
         {parovi.map((p, index) => (
           <div key={index} className="flex gap-2 mb-2">
             <input placeholder="Par" value={p.par} onChange={e => handleChangePar(index, 'par', e.target.value)} className="p-2 bg-gray-800 rounded" />
@@ -163,11 +175,18 @@ export default function AmateurTipsterDashboard() {
         <h2 className="text-xl font-bold mb-2">Moji listići</h2>
         {mojiListici.map(l => (
           <div key={l.id} className="border-b border-gray-600 py-2">
+            <p><strong>Naslov:</strong> {l.title}</p>
             <p><strong>Parovi:</strong> {l.pairs.map(p => `${p.par} (${p.tip}) - ${p.kvota}`).join(', ')}</p>
             <p><strong>Kvota:</strong> {l.total_odds}</p>
             <p><strong>Ulog:</strong> {l.stake}</p>
             <p><strong>Status:</strong> {l.status}</p>
             <p><strong>Analiza:</strong> {l.analysis}</p>
+            {l.status === 'pending' && (
+              <div className="flex gap-2 mt-2">
+                <button onClick={() => handleStatusUpdate(l.id, 'won')} className="bg-green-700 p-1 rounded">Označi kao dobitan</button>
+                <button onClick={() => handleStatusUpdate(l.id, 'lost')} className="bg-red-700 p-1 rounded">Označi kao gubitan</button>
+              </div>
+            )}
           </div>
         ))}
       </div>
