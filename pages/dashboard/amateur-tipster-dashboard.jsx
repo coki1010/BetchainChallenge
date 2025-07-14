@@ -11,7 +11,7 @@ export default function AmateurTipsterDashboard() {
   const [parovi, setParovi] = useState([{ par: '', kvota: '', tip: '' }]);
   const [ulog, setUlog] = useState('');
   const [analiza, setAnaliza] = useState('');
-  const [dobitan, setDobitan] = useState(true);
+  const [status, setStatus] = useState('pending');
   const [mojiListici, setMojiListici] = useState([]);
   const [sviListici, setSviListici] = useState([]);
   const [proListici, setProListici] = useState([]);
@@ -48,7 +48,7 @@ export default function AmateurTipsterDashboard() {
       let currentSaldo = 10000;
       data.forEach(bet => {
         if (bet.status === 'won') currentSaldo += bet.stake * bet.total_odds;
-        else currentSaldo -= bet.stake;
+        else if (bet.status === 'lost') currentSaldo -= bet.stake;
       });
       setSaldo(currentSaldo);
     }
@@ -94,7 +94,6 @@ export default function AmateurTipsterDashboard() {
     }
 
     const kvota = parseFloat(ukupnaKvota());
-    const status = dobitan ? 'won' : 'lost';
     const created_at = new Date().toISOString();
 
     const { error } = await supabase.from('bets').insert([
@@ -104,7 +103,7 @@ export default function AmateurTipsterDashboard() {
         stake: parseFloat(ulog),
         total_odds: kvota,
         analysis: analiza,
-        status,
+        status: status,
         created_at,
         role: 'amateur_tipster',
         pairs: parovi
@@ -117,7 +116,7 @@ export default function AmateurTipsterDashboard() {
       setParovi([{ par: '', kvota: '', tip: '' }]);
       setUlog('');
       setAnaliza('');
-      setDobitan(true);
+      setStatus('pending');
     } else {
       console.error("Greška prilikom unosa:", error.message);
       alert("Greška prilikom unosa: " + error.message);
@@ -144,14 +143,19 @@ export default function AmateurTipsterDashboard() {
         <p className="mt-2">Ukupna kvota: {ukupnaKvota()}</p>
         <input placeholder="Ulog" type="number" value={ulog} onChange={e => setUlog(e.target.value)} className="w-full p-2 bg-gray-800 rounded my-2" />
         <textarea placeholder="Analiza" value={analiza} onChange={e => setAnaliza(e.target.value)} className="w-full p-2 bg-gray-800 rounded my-2" />
+
         <div className="flex items-center gap-4 my-2">
           <label className="flex items-center gap-2">
-            <input type="radio" value="won" checked={dobitan === true} onChange={() => setDobitan(true)} /> Dobitan
+            <input type="radio" value="pending" checked={status === 'pending'} onChange={() => setStatus('pending')} /> Pending
           </label>
           <label className="flex items-center gap-2">
-            <input type="radio" value="lost" checked={dobitan === false} onChange={() => setDobitan(false)} /> Gubitan
+            <input type="radio" value="won" checked={status === 'won'} onChange={() => setStatus('won')} /> Dobitan
+          </label>
+          <label className="flex items-center gap-2">
+            <input type="radio" value="lost" checked={status === 'lost'} onChange={() => setStatus('lost')} /> Gubitan
           </label>
         </div>
+
         <button onClick={handleUnosListica} className="bg-green-600 p-2 mt-2 rounded">Unesi listić</button>
       </div>
 
@@ -162,7 +166,7 @@ export default function AmateurTipsterDashboard() {
             <p><strong>Parovi:</strong> {l.pairs.map(p => `${p.par} (${p.tip}) - ${p.kvota}`).join(', ')}</p>
             <p><strong>Kvota:</strong> {l.total_odds}</p>
             <p><strong>Ulog:</strong> {l.stake}</p>
-            <p><strong>Dobitan:</strong> {l.status === 'won' ? 'Da' : 'Ne'}</p>
+            <p><strong>Status:</strong> {l.status}</p>
             <p><strong>Analiza:</strong> {l.analysis}</p>
           </div>
         ))}
