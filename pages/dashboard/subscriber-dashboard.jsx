@@ -24,8 +24,13 @@ const SubscriberDashboard = () => {
       if (!user) return;
       setUser(user);
 
-      const { data: profile } = await supabase.from('profiles').select('is_subscribed').eq('id', user.id).single();
-      setHasSubscription(profile?.is_subscribed);
+      const { data: subscription } = await supabase
+        .from('subscriptions')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('active', true)
+        .single();
+      setHasSubscription(!!subscription);
 
       const { data: betsData } = await supabase
         .from('bets')
@@ -50,7 +55,6 @@ const SubscriberDashboard = () => {
       });
       setComments(commentMap);
 
-      // Rankings
       const { data: allProfiles } = await supabase.from('profiles').select('id, nickname, role');
       const balances = {};
       betsData.forEach(bet => {
