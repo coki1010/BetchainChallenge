@@ -46,7 +46,10 @@ const SubscriberDashboard = () => {
       });
       setLikes(likeMap);
 
-      const { data: commentsData } = await supabase.from('comments').select('*, profiles(nickname)').order('created_at', { ascending: true });
+      const { data: commentsData } = await supabase
+        .from('comments')
+        .select('*, profiles(nickname, id)')
+        .order('created_at', { ascending: true });
       const commentMap = {};
       commentsData?.forEach((c) => {
         if (!commentMap[c.bet_id]) commentMap[c.bet_id] = [];
@@ -78,6 +81,11 @@ const SubscriberDashboard = () => {
     fetchData();
   }, []);
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push('/');
+  };
+
   const handleLike = async (betId) => {
     if (!user) return;
     if (likes[betId]) {
@@ -92,23 +100,25 @@ const SubscriberDashboard = () => {
     if (!user || !newComments[betId]) return;
     const text = newComments[betId].trim();
     if (!text) return;
-
-    const { data: insertedComment, error } = await supabase
+    const { data: inserted, error } = await supabase
       .from('comments')
       .insert({ user_id: user.id, bet_id: betId, text })
-      .select('*, profiles(nickname)')
-      .single();
-
-    if (error) {
-      console.error("Greška pri unosu komentara:", error.message);
-      return;
+      .select('*, profiles(nickname, id)');
+    if (!error && inserted?.[0]) {
+      setComments((prev) => ({
+        ...prev,
+        [betId]: [...(prev[betId] || []), inserted[0]]
+      }));
+      setNewComments((prev) => ({ ...prev, [betId]: '' }));
     }
+  };
 
+  const handleCommentDelete = async (commentId, betId) => {
+    await supabase.from('comments').delete().eq('id', commentId);
     setComments((prev) => ({
       ...prev,
-      [betId]: [...(prev[betId] || []), insertedComment]
+      [betId]: (prev[betId] || []).filter(c => c.id !== commentId)
     }));
-    setNewComments((prev) => ({ ...prev, [betId]: '' }));
   };
 
   const filteredBets = bets.filter(bet =>
@@ -123,13 +133,11 @@ const SubscriberDashboard = () => {
       <p className="mt-1">Analiza: {bet.analysis}</p>
       <p className="mt-1">Ulog: €{bet.stake} | Kvota: {bet.total_odds}</p>
       <p className="mt-2 font-semibold">Status: {bet.status}</p>
-
       <div className="mt-3">
         <button onClick={() => handleLike(bet.id)} className="text-blue-400 text-sm">
           {likes[bet.id] ? '❤️ Sviđa mi se' : '🤍 Like'}
         </button>
       </div>
-
       <div className="mt-3">
         <input
           type="text"
@@ -141,8 +149,11 @@ const SubscriberDashboard = () => {
         <button onClick={() => handleCommentSubmit(bet.id)} className="text-sm text-green-400">Komentiraj</button>
         <div className="mt-2">
           {(comments[bet.id] || []).map((c) => (
-            <p key={c.id} className="text-sm text-gray-300">
-              <strong>{c.profiles?.nickname || 'Korisnik'}:</strong> {c.text}
+            <p key={c.id} className="text-sm text-gray-300 flex justify-between items-center">
+              <span><strong>{c.profiles?.nickname || 'Korisnik'}:</strong> {c.text}</span>
+              {c.user_id === user?.id && (
+                <button onClick={() => handleCommentDelete(c.id, bet.id)} className="text-red-500 text-xs ml-4">Obriši</button>
+              )}
             </p>
           ))}
         </div>
@@ -173,6 +184,7 @@ const SubscriberDashboard = () => {
             onChange={(e) => setSearchTerm(e.target.value)}
             className="bg-[#1a1a1a] text-white px-2 py-1 rounded"
           />
+          <button onClick={handleLogout} className="text-red-400 text-sm">Odjavi se</button>
         </div>
       </div>
 
