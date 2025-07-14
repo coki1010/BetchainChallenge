@@ -50,7 +50,7 @@ const SubscriberDashboard = () => {
 
       const { data: commentsData } = await supabase
         .from('comments')
-        .select('*, profiles(nickname)')
+        .select('id, user_id, bet_id, text, created_at, profiles(nickname)')
         .order('created_at', { ascending: true });
       const commentMap = {};
       commentsData?.forEach((c) => {
@@ -100,7 +100,7 @@ const SubscriberDashboard = () => {
     if (!error) {
       const { data: updated } = await supabase
         .from('comments')
-        .select('*, profiles(nickname)')
+        .select('id, user_id, bet_id, text, created_at, profiles(nickname)')
         .eq('bet_id', betId)
         .order('created_at', { ascending: true });
       setComments(prev => ({ ...prev, [betId]: updated }));
@@ -124,52 +124,31 @@ const SubscriberDashboard = () => {
   );
 
   const renderBet = (bet) => (
-    <div key={bet.id} className="bg-[#1f1f1f] p-4 rounded-xl mt-4 shadow-md">
-      <p className="text-xs text-gray-400">{new Date(bet.created_at).toLocaleString()}</p>
-      <h3 className="text-lg font-bold text-white">{bet.title}</h3>
-      <p className="text-sm mt-1 text-gray-300">
-        Autor: <span className="text-blue-400">{bet.profiles?.nickname || 'Nepoznat'}</span>
-      </p>
-      <p className="text-sm mt-1 text-gray-300">Analiza: {bet.analysis}</p>
-      <p className="text-sm mt-1 text-gray-300">
-        Ulog: €{bet.stake} | Kvota: {bet.total_odds} | Status: <span className="font-semibold">{bet.status}</span>
-      </p>
-
-      <div className="mt-3 flex items-center gap-4">
-        <button
-          onClick={() => handleLike(bet.id)}
-          className={`text-sm ${likes[bet.id] ? 'text-red-400' : 'text-gray-400'} hover:text-red-300`}
-        >
-          {likes[bet.id] ? '❤️ Sviđa mi se' : '🤍 Like'}
-        </button>
-      </div>
-
+    <div key={bet.id} className="bg-[#1a1a1a] p-4 rounded-xl mt-4">
+      <p className="text-sm text-gray-400">{new Date(bet.created_at).toLocaleString()}</p>
+      <p className="text-lg font-bold">{bet.title}</p>
+      <p className="mt-1">Autor: <span className="text-blue-400">{bet.profiles?.nickname || 'Nepoznat'}</span></p>
+      <p className="mt-1">Analiza: {bet.analysis}</p>
+      <p className="mt-1">Ulog: €{bet.stake} | Kvota: {bet.total_odds}</p>
+      <p className="mt-1 font-semibold">Status: {bet.status}</p>
+      <button onClick={() => handleLike(bet.id)} className="text-blue-400 text-sm mt-2">
+        {likes[bet.id] ? '❤️ Sviđa mi se' : '🤍 Like'}
+      </button>
       <div className="mt-3">
         <input
           type="text"
           value={newComments[bet.id] || ''}
           onChange={(e) => setNewComments((prev) => ({ ...prev, [bet.id]: e.target.value }))}
           placeholder="Dodaj komentar..."
-          className="w-full p-2 bg-[#2a2a2a] rounded border border-gray-600 text-white"
+          className="w-full p-2 bg-[#2a2a2a] rounded mb-2"
         />
-        <button
-          onClick={() => handleCommentSubmit(bet.id)}
-          className="mt-2 text-sm text-green-400 hover:text-green-300"
-        >
-          💬 Pošalji komentar
-        </button>
-
-        <div className="mt-3 space-y-2">
+        <button onClick={() => handleCommentSubmit(bet.id)} className="text-green-400 text-sm">Pošalji</button>
+        <div className="mt-2 space-y-1">
           {(comments[bet.id] || []).map((c) => (
-            <div key={c.id} className="bg-[#2a2a2a] p-2 rounded text-sm flex justify-between items-center">
-              <span className="text-gray-200"><strong>{c.profiles?.nickname || 'Korisnik'}:</strong> {c.text}</span>
+            <div key={c.id} className="text-sm text-gray-300 flex justify-between items-center">
+              <p><strong>{c.profiles?.nickname || 'Korisnik'}:</strong> {c.text}</p>
               {c.user_id === user.id && (
-                <button
-                  onClick={() => handleCommentDelete(c.id, bet.id)}
-                  className="text-xs text-red-400 hover:text-red-300 ml-3"
-                >
-                  🗑 Obriši
-                </button>
+                <button onClick={() => handleCommentDelete(c.id, bet.id)} className="text-red-400 text-xs ml-2">Obriši</button>
               )}
             </div>
           ))}
