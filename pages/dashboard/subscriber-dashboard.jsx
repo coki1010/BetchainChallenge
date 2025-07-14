@@ -7,7 +7,6 @@ const SubscriberDashboard = () => {
   const [user, setUser] = useState(null);
   const [bets, setBets] = useState([]);
   const [hasSubscription, setHasSubscription] = useState(false);
-  const [lang, setLang] = useState('en');
   const [likes, setLikes] = useState({});
   const [comments, setComments] = useState({});
   const [newComments, setNewComments] = useState({});
@@ -50,8 +49,9 @@ const SubscriberDashboard = () => {
 
       const { data: commentsData } = await supabase
         .from('comments')
-        .select('*, profiles(nickname)')
+        .select('id, content, nickname, user_id, bet_id, created_at, profiles:profiles!comments_user_id_fkey(nickname)')
         .order('created_at', { ascending: true });
+
       const commentMap = {};
       commentsData?.forEach((c) => {
         if (!commentMap[c.bet_id]) commentMap[c.bet_id] = [];
@@ -96,26 +96,11 @@ const SubscriberDashboard = () => {
   const handleCommentSubmit = async (betId) => {
     const text = newComments[betId]?.trim();
     if (!text) return;
-
-    const { data: profileData } = await supabase
-      .from('profiles')
-      .select('nickname')
-      .eq('id', user.id)
-      .single();
-
-    const nickname = profileData?.nickname || 'Korisnik';
-
-    const { error } = await supabase.from('comments').insert({
-      user_id: user.id,
-      bet_id: betId,
-      content: text,
-      nickname,
-    });
-
+    const { error } = await supabase.from('comments').insert({ user_id: user.id, bet_id: betId, content: text });
     if (!error) {
       const { data: updated } = await supabase
         .from('comments')
-        .select('*, profiles(nickname)')
+        .select('id, content, nickname, user_id, bet_id, created_at, profiles:profiles!comments_user_id_fkey(nickname)')
         .eq('bet_id', betId)
         .order('created_at', { ascending: true });
       setComments(prev => ({ ...prev, [betId]: updated }));
@@ -155,13 +140,13 @@ const SubscriberDashboard = () => {
           value={newComments[bet.id] || ''}
           onChange={(e) => setNewComments((prev) => ({ ...prev, [bet.id]: e.target.value }))}
           placeholder="Dodaj komentar..."
-          className="w-full p-2 bg-[#2a2a2a] rounded mb-2 text-white"
+          className="w-full p-2 bg-[#2a2a2a] rounded mb-2"
         />
         <button onClick={() => handleCommentSubmit(bet.id)} className="text-green-400 text-sm">Pošalji</button>
         <div className="mt-2 space-y-1">
           {(comments[bet.id] || []).map((c) => (
-            <div key={c.id} className="text-sm text-gray-300 flex justify-between items-center bg-[#2a2a2a] px-2 py-1 rounded">
-              <p><strong>{c.nickname || c.profiles?.nickname || 'Korisnik'}:</strong> {c.content}</p>
+            <div key={c.id} className="text-sm text-gray-300 flex justify-between items-center">
+              <p><strong>{c.profiles?.nickname || 'Korisnik'}:</strong> {c.content}</p>
               {c.user_id === user.id && (
                 <button onClick={() => handleCommentDelete(c.id, bet.id)} className="text-red-400 text-xs ml-2">Obriši</button>
               )}
