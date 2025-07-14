@@ -1,3 +1,4 @@
+// Updated SubscriberDashboard.jsx
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useRouter } from 'next/router';
@@ -24,13 +25,12 @@ const SubscriberDashboard = () => {
       if (!user) return;
       setUser(user);
 
-      const { data: subscription } = await supabase
-        .from('subscriptions')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('active', true)
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('is_subscribed')
+        .eq('id', user.id)
         .single();
-      setHasSubscription(!!subscription);
+      setHasSubscription(profile?.is_subscribed === true);
 
       const { data: betsData } = await supabase
         .from('bets')
