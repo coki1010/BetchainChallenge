@@ -46,10 +46,7 @@ const SubscriberDashboard = () => {
       });
       setLikes(likeMap);
 
-      const { data: commentsData } = await supabase
-        .from('comments')
-        .select('*, profiles(nickname)')
-        .order('created_at', { ascending: true });
+      const { data: commentsData } = await supabase.from('comments').select('*, profiles(nickname)').order('created_at', { ascending: true });
       const commentMap = {};
       commentsData?.forEach((c) => {
         if (!commentMap[c.bet_id]) commentMap[c.bet_id] = [];
@@ -96,34 +93,21 @@ const SubscriberDashboard = () => {
     const text = newComments[betId].trim();
     if (!text) return;
 
-    const { error } = await supabase.from('comments').insert({
-      user_id: user.id,
-      bet_id: betId,
-      text,
-    });
+    const { data: insertedComment, error } = await supabase
+      .from('comments')
+      .insert({ user_id: user.id, bet_id: betId, text })
+      .select('*, profiles(nickname)')
+      .single();
 
     if (error) {
-      console.error('Greška prilikom slanja komentara:', error.message);
-      return;
-    }
-
-    // Dohvati sve komentare za taj bet
-    const { data: updatedComments, error: fetchError } = await supabase
-      .from('comments')
-      .select('*, profiles(nickname)')
-      .eq('bet_id', betId)
-      .order('created_at', { ascending: true });
-
-    if (fetchError) {
-      console.error('Greška prilikom dohvaćanja komentara:', fetchError.message);
+      console.error("Greška pri unosu komentara:", error.message);
       return;
     }
 
     setComments((prev) => ({
       ...prev,
-      [betId]: updatedComments || [],
+      [betId]: [...(prev[betId] || []), insertedComment]
     }));
-
     setNewComments((prev) => ({ ...prev, [betId]: '' }));
   };
 
@@ -132,7 +116,7 @@ const SubscriberDashboard = () => {
   );
 
   const renderBet = (bet) => (
-    <div key={bet.id} className="bg-[#1a1a1a] p-4 rounded-xl mb-4">
+    <div key={bet.id} className="bg-[#1a1a1a] p-4 rounded-xl mb-6">
       <p className="text-sm text-gray-400">{new Date(bet.created_at).toLocaleString()}</p>
       <p className="text-lg font-bold mt-1">{bet.title}</p>
       <p className="mt-1">Autor: <span className="text-blue-400">{bet.profiles?.nickname || 'Nepoznat'}</span></p>
@@ -155,7 +139,6 @@ const SubscriberDashboard = () => {
           className="w-full p-2 bg-[#2a2a2a] rounded mb-2"
         />
         <button onClick={() => handleCommentSubmit(bet.id)} className="text-sm text-green-400">Komentiraj</button>
-
         <div className="mt-2">
           {(comments[bet.id] || []).map((c) => (
             <p key={c.id} className="text-sm text-gray-300">
@@ -182,13 +165,15 @@ const SubscriberDashboard = () => {
     <div className="min-h-screen bg-[#0f0f0f] text-white p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Dashboard</h1>
-        <input
-          type="text"
-          placeholder="Pretraži tipstera..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="bg-[#1a1a1a] text-white px-2 py-1 rounded"
-        />
+        <div className="flex gap-4 items-center">
+          <input
+            type="text"
+            placeholder="Pretraži tipstera..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="bg-[#1a1a1a] text-white px-2 py-1 rounded"
+          />
+        </div>
       </div>
 
       <h2 className="text-xl font-semibold mb-2">🏆 Rang lista PRO tipstera</h2>
