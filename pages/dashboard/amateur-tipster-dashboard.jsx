@@ -22,8 +22,9 @@ export default function AmateurTipsterDashboard() {
 
   useEffect(() => {
     const fetchUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error } = await supabase.auth.getUser();
       if (!user) return router.push('/');
+      console.log("Prijavljeni korisnik:", user);
       setUserId(user.id);
       fetchListici(user.id);
       fetchRangLista();
@@ -87,6 +88,11 @@ export default function AmateurTipsterDashboard() {
   };
 
   const handleUnosListica = async () => {
+    if (!userId) {
+      alert("Greška: korisnik nije prijavljen ili nema ID.");
+      return;
+    }
+
     const kvota = parseFloat(ukupnaKvota());
     const status = dobitan ? 'won' : 'lost';
     const created_at = new Date().toISOString();
@@ -114,6 +120,7 @@ export default function AmateurTipsterDashboard() {
       setDobitan(true);
     } else {
       console.error("Greška prilikom unosa:", error.message);
+      alert("Greška prilikom unosa: " + error.message);
     }
   };
 
