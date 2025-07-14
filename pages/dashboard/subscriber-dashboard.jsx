@@ -1,5 +1,3 @@
-
-// SubscriberDashboard.jsx
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useRouter } from 'next/router';
@@ -98,7 +96,22 @@ const SubscriberDashboard = () => {
   const handleCommentSubmit = async (betId) => {
     const text = newComments[betId]?.trim();
     if (!text) return;
-    const { error } = await supabase.from('comments').insert({ user_id: user.id, bet_id: betId, content: text });
+
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('nickname')
+      .eq('id', user.id)
+      .single();
+
+    const nickname = profileData?.nickname || 'Korisnik';
+
+    const { error } = await supabase.from('comments').insert({
+      user_id: user.id,
+      bet_id: betId,
+      content: text,
+      nickname,
+    });
+
     if (!error) {
       const { data: updated } = await supabase
         .from('comments')
@@ -142,13 +155,13 @@ const SubscriberDashboard = () => {
           value={newComments[bet.id] || ''}
           onChange={(e) => setNewComments((prev) => ({ ...prev, [bet.id]: e.target.value }))}
           placeholder="Dodaj komentar..."
-          className="w-full p-2 bg-[#2a2a2a] rounded mb-2"
+          className="w-full p-2 bg-[#2a2a2a] rounded mb-2 text-white"
         />
         <button onClick={() => handleCommentSubmit(bet.id)} className="text-green-400 text-sm">Pošalji</button>
         <div className="mt-2 space-y-1">
           {(comments[bet.id] || []).map((c) => (
-            <div key={c.id} className="text-sm text-gray-300 flex justify-between items-center">
-              <p><strong>{c.profiles?.nickname || 'Korisnik'}:</strong> {c.content}</p>
+            <div key={c.id} className="text-sm text-gray-300 flex justify-between items-center bg-[#2a2a2a] px-2 py-1 rounded">
+              <p><strong>{c.nickname || c.profiles?.nickname || 'Korisnik'}:</strong> {c.content}</p>
               {c.user_id === user.id && (
                 <button onClick={() => handleCommentDelete(c.id, bet.id)} className="text-red-400 text-xs ml-2">Obriši</button>
               )}
