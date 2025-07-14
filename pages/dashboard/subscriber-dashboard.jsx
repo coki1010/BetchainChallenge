@@ -1,4 +1,3 @@
-// Updated SubscriberDashboard.jsx
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useRouter } from 'next/router';
@@ -47,7 +46,10 @@ const SubscriberDashboard = () => {
       });
       setLikes(likeMap);
 
-      const { data: commentsData } = await supabase.from('comments').select('*, profiles(nickname)').order('created_at', { ascending: true });
+      const { data: commentsData } = await supabase
+        .from('comments')
+        .select('*, profiles(nickname)')
+        .order('created_at', { ascending: true });
       const commentMap = {};
       commentsData?.forEach((c) => {
         if (!commentMap[c.bet_id]) commentMap[c.bet_id] = [];
@@ -93,12 +95,35 @@ const SubscriberDashboard = () => {
     if (!user || !newComments[betId]) return;
     const text = newComments[betId].trim();
     if (!text) return;
-    await supabase.from('comments').insert({ user_id: user.id, bet_id: betId, text });
-    const { data: newComment } = await supabase.from('comments').select('*, profiles(nickname)').order('created_at', { ascending: false }).limit(1);
+
+    const { error } = await supabase.from('comments').insert({
+      user_id: user.id,
+      bet_id: betId,
+      text,
+    });
+
+    if (error) {
+      console.error('Greška prilikom slanja komentara:', error.message);
+      return;
+    }
+
+    // Dohvati sve komentare za taj bet
+    const { data: updatedComments, error: fetchError } = await supabase
+      .from('comments')
+      .select('*, profiles(nickname)')
+      .eq('bet_id', betId)
+      .order('created_at', { ascending: true });
+
+    if (fetchError) {
+      console.error('Greška prilikom dohvaćanja komentara:', fetchError.message);
+      return;
+    }
+
     setComments((prev) => ({
       ...prev,
-      [betId]: [...(prev[betId] || []), newComment[0]]
+      [betId]: updatedComments || [],
     }));
+
     setNewComments((prev) => ({ ...prev, [betId]: '' }));
   };
 
@@ -107,18 +132,20 @@ const SubscriberDashboard = () => {
   );
 
   const renderBet = (bet) => (
-    <div key={bet.id} className="bg-[#1a1a1a] p-4 rounded-xl">
+    <div key={bet.id} className="bg-[#1a1a1a] p-4 rounded-xl mb-4">
       <p className="text-sm text-gray-400">{new Date(bet.created_at).toLocaleString()}</p>
       <p className="text-lg font-bold mt-1">{bet.title}</p>
       <p className="mt-1">Autor: <span className="text-blue-400">{bet.profiles?.nickname || 'Nepoznat'}</span></p>
       <p className="mt-1">Analiza: {bet.analysis}</p>
       <p className="mt-1">Ulog: €{bet.stake} | Kvota: {bet.total_odds}</p>
       <p className="mt-2 font-semibold">Status: {bet.status}</p>
+
       <div className="mt-3">
         <button onClick={() => handleLike(bet.id)} className="text-blue-400 text-sm">
           {likes[bet.id] ? '❤️ Sviđa mi se' : '🤍 Like'}
         </button>
       </div>
+
       <div className="mt-3">
         <input
           type="text"
@@ -127,7 +154,8 @@ const SubscriberDashboard = () => {
           placeholder="Dodaj komentar..."
           className="w-full p-2 bg-[#2a2a2a] rounded mb-2"
         />
-        <button onClick={() => handleCommentSubmit(bet.id)} className="text-sm text-green-400">Pošalji</button>
+        <button onClick={() => handleCommentSubmit(bet.id)} className="text-sm text-green-400">Komentiraj</button>
+
         <div className="mt-2">
           {(comments[bet.id] || []).map((c) => (
             <p key={c.id} className="text-sm text-gray-300">
@@ -154,15 +182,13 @@ const SubscriberDashboard = () => {
     <div className="min-h-screen bg-[#0f0f0f] text-white p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Dashboard</h1>
-        <div className="flex gap-4 items-center">
-          <input
-            type="text"
-            placeholder="Pretraži tipstera..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="bg-[#1a1a1a] text-white px-2 py-1 rounded"
-          />
-        </div>
+        <input
+          type="text"
+          placeholder="Pretraži tipstera..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="bg-[#1a1a1a] text-white px-2 py-1 rounded"
+        />
       </div>
 
       <h2 className="text-xl font-semibold mb-2">🏆 Rang lista PRO tipstera</h2>
