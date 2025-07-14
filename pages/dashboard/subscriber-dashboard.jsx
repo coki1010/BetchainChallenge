@@ -1,3 +1,4 @@
+// SubscriberDashboard.jsx
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useRouter } from 'next/router';
@@ -14,6 +15,8 @@ const SubscriberDashboard = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [proRankings, setProRankings] = useState([]);
   const [amateurRankings, setAmateurRankings] = useState([]);
+  const [showProBets, setShowProBets] = useState(true);
+  const [showAmateurBets, setShowAmateurBets] = useState(true);
 
   useEffect(() => {
     const storedLang = localStorage.getItem('language');
@@ -48,7 +51,7 @@ const SubscriberDashboard = () => {
 
       const { data: commentsData } = await supabase
         .from('comments')
-        .select('*, profiles(nickname, id)')
+        .select('*, profiles(nickname)')
         .order('created_at', { ascending: true });
       const commentMap = {};
       commentsData?.forEach((c) => {
@@ -81,11 +84,6 @@ const SubscriberDashboard = () => {
     fetchData();
   }, []);
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push('/');
-  };
-
   const handleLike = async (betId) => {
     if (!user) return;
     if (likes[betId]) {
@@ -97,28 +95,29 @@ const SubscriberDashboard = () => {
   };
 
   const handleCommentSubmit = async (betId) => {
-    if (!user || !newComments[betId]) return;
-    const text = newComments[betId].trim();
+    const text = newComments[betId]?.trim();
     if (!text) return;
-    const { data: inserted, error } = await supabase
-      .from('comments')
-      .insert({ user_id: user.id, bet_id: betId, text })
-      .select('*, profiles(nickname, id)');
-    if (!error && inserted?.[0]) {
-      setComments((prev) => ({
-        ...prev,
-        [betId]: [...(prev[betId] || []), inserted[0]]
-      }));
-      setNewComments((prev) => ({ ...prev, [betId]: '' }));
+    const { error } = await supabase.from('comments').insert({ user_id: user.id, bet_id: betId, text });
+    if (!error) {
+      const { data: updated } = await supabase
+        .from('comments')
+        .select('*, profiles(nickname)')
+        .eq('bet_id', betId)
+        .order('created_at', { ascending: true });
+      setComments(prev => ({ ...prev, [betId]: updated }));
+      setNewComments(prev => ({ ...prev, [betId]: '' }));
     }
   };
 
   const handleCommentDelete = async (commentId, betId) => {
     await supabase.from('comments').delete().eq('id', commentId);
-    setComments((prev) => ({
-      ...prev,
-      [betId]: (prev[betId] || []).filter(c => c.id !== commentId)
-    }));
+    const updated = (comments[betId] || []).filter(c => c.id !== commentId);
+    setComments(prev => ({ ...prev, [betId]: updated }));
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push('/');
   };
 
   const filteredBets = bets.filter(bet =>
@@ -126,18 +125,16 @@ const SubscriberDashboard = () => {
   );
 
   const renderBet = (bet) => (
-    <div key={bet.id} className="bg-[#1a1a1a] p-4 rounded-xl mb-6">
+    <div key={bet.id} className="bg-[#1a1a1a] p-4 rounded-xl mt-4">
       <p className="text-sm text-gray-400">{new Date(bet.created_at).toLocaleString()}</p>
-      <p className="text-lg font-bold mt-1">{bet.title}</p>
+      <p className="text-lg font-bold">{bet.title}</p>
       <p className="mt-1">Autor: <span className="text-blue-400">{bet.profiles?.nickname || 'Nepoznat'}</span></p>
       <p className="mt-1">Analiza: {bet.analysis}</p>
       <p className="mt-1">Ulog: €{bet.stake} | Kvota: {bet.total_odds}</p>
-      <p className="mt-2 font-semibold">Status: {bet.status}</p>
-      <div className="mt-3">
-        <button onClick={() => handleLike(bet.id)} className="text-blue-400 text-sm">
-          {likes[bet.id] ? '❤️ Sviđa mi se' : '🤍 Like'}
-        </button>
-      </div>
+      <p className="mt-1 font-semibold">Status: {bet.status}</p>
+      <button onClick={() => handleLike(bet.id)} className="text-blue-400 text-sm mt-2">
+        {likes[bet.id] ? '❤️ Sviđa mi se' : '🤍 Like'}
+      </button>
       <div className="mt-3">
         <input
           type="text"
@@ -146,15 +143,15 @@ const SubscriberDashboard = () => {
           placeholder="Dodaj komentar..."
           className="w-full p-2 bg-[#2a2a2a] rounded mb-2"
         />
-        <button onClick={() => handleCommentSubmit(bet.id)} className="text-sm text-green-400">Komentiraj</button>
-        <div className="mt-2">
+        <button onClick={() => handleCommentSubmit(bet.id)} className="text-green-400 text-sm">Pošalji</button>
+        <div className="mt-2 space-y-1">
           {(comments[bet.id] || []).map((c) => (
-            <p key={c.id} className="text-sm text-gray-300 flex justify-between items-center">
-              <span><strong>{c.profiles?.nickname || 'Korisnik'}:</strong> {c.text}</span>
-              {c.user_id === user?.id && (
-                <button onClick={() => handleCommentDelete(c.id, bet.id)} className="text-red-500 text-xs ml-4">Obriši</button>
+            <div key={c.id} className="text-sm text-gray-300 flex justify-between items-center">
+              <p><strong>{c.profiles?.nickname || 'Korisnik'}:</strong> {c.text}</p>
+              {c.user_id === user.id && (
+                <button onClick={() => handleCommentDelete(c.id, bet.id)} className="text-red-400 text-xs ml-2">Obriši</button>
               )}
-            </p>
+            </div>
           ))}
         </div>
       </div>
@@ -184,7 +181,7 @@ const SubscriberDashboard = () => {
             onChange={(e) => setSearchTerm(e.target.value)}
             className="bg-[#1a1a1a] text-white px-2 py-1 rounded"
           />
-          <button onClick={handleLogout} className="text-red-400 text-sm">Odjavi se</button>
+          <button onClick={handleLogout} className="bg-red-500 px-4 py-1 rounded text-white">Odjava</button>
         </div>
       </div>
 
@@ -198,11 +195,19 @@ const SubscriberDashboard = () => {
         <p key={p.id}>{idx + 1}. {p.nickname} - €{p.saldo.toFixed(2)}</p>
       ))}
 
-      <h2 className="text-xl font-semibold mt-6 mb-2">📄 Listići PRO tipstera</h2>
-      {filteredBets.filter(b => b.profiles?.role === 'pro_tipster').map(renderBet)}
+      <div className="mt-6">
+        <button onClick={() => setShowProBets(!showProBets)} className="text-lg font-semibold text-blue-400">
+          📄 Listići PRO tipstera {showProBets ? '▲' : '▼'}
+        </button>
+        {showProBets && filteredBets.filter(b => b.profiles?.role === 'pro_tipster').map(renderBet)}
+      </div>
 
-      <h2 className="text-xl font-semibold mt-6 mb-2">📄 Listići amaterskih tipstera</h2>
-      {filteredBets.filter(b => b.profiles?.role === 'amateur_tipster').map(renderBet)}
+      <div className="mt-6">
+        <button onClick={() => setShowAmateurBets(!showAmateurBets)} className="text-lg font-semibold text-green-400">
+          📄 Listići amaterskih tipstera {showAmateurBets ? '▲' : '▼'}
+        </button>
+        {showAmateurBets && filteredBets.filter(b => b.profiles?.role === 'amateur_tipster').map(renderBet)}
+      </div>
     </div>
   );
 };
