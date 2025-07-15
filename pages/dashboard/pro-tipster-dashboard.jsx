@@ -1,3 +1,5 @@
+
+// /pages/dashboard/amateur-tipster-dashboard.jsx
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useRouter } from 'next/router';
@@ -46,12 +48,7 @@ export default function AmateurTipsterDashboard() {
     const { data } = await supabase.from('bets').select('*').eq('user_id', id);
     if (data) {
       setMojiListici(data);
-      let saldoTemp = 10000;
-      data.forEach(bet => {
-        if (bet.status === 'won') saldoTemp += bet.stake * bet.total_odds;
-        else if (bet.status === 'lost') saldoTemp -= bet.stake;
-      });
-      setSaldo(saldoTemp);
+      updateSaldo(data);
     }
   };
 
@@ -81,6 +78,15 @@ export default function AmateurTipsterDashboard() {
       groupedLikes[l.bet_id].push(l);
     });
     setLikes(groupedLikes);
+  };
+
+  const updateSaldo = (listici) => {
+    let saldoTemp = 10000;
+    listici.forEach(bet => {
+      if (bet.status === 'won') saldoTemp += bet.stake * bet.total_odds;
+      else if (bet.status === 'lost') saldoTemp -= bet.stake;
+    });
+    setSaldo(saldoTemp);
   };
 
   const handleCommentChange = (betId, val) => {
@@ -116,9 +122,7 @@ export default function AmateurTipsterDashboard() {
 
   const handleDodajPar = () => setParovi([...parovi, { par: '', kvota: '', tip: '' }]);
 
-  const ukupnaKvota = () => {
-    return parovi.reduce((acc, p) => acc * parseFloat(p.kvota || 1), 1).toFixed(2);
-  };
+  const ukupnaKvota = () => parovi.reduce((acc, p) => acc * parseFloat(p.kvota || 1), 1).toFixed(2);
 
   const handleUnosListica = async () => {
     if (!naslov || !ulog || !parovi.length) return alert("Popunite sve podatke!");
@@ -130,7 +134,7 @@ export default function AmateurTipsterDashboard() {
       stake: parseFloat(ulog),
       total_odds: kvota,
       analysis: analiza,
-      status: 'pending',
+      status,
       role: 'amateur_tipster',
       pairs: parovi,
       created_at: new Date().toISOString()
@@ -142,29 +146,10 @@ export default function AmateurTipsterDashboard() {
     }
   };
 
-  const handleStatusChange = async (betId, newStatus) => {
-    const bet = mojiListici.find(b => b.id === betId);
-    if (!bet) return;
-
-    let noviSaldo = saldo;
-    if (bet.status === 'pending') {
-      if (newStatus === 'won') {
-        noviSaldo += bet.stake * bet.total_odds;
-      } else if (newStatus === 'lost') {
-        noviSaldo -= bet.stake;
-      }
-
-      const { error } = await supabase
-        .from('bets')
-        .update({ status: newStatus })
-        .eq('id', betId);
-
-      if (!error) {
-        setSaldo(noviSaldo);
-        fetchListici(userId);
-        fetchSviListici();
-      }
-    }
+  const handleStatusUpdate = async (id, newStatus) => {
+    await supabase.from('bets').update({ status: newStatus }).eq('id', id);
+    fetchListici(userId);
+    fetchSviListici();
   };
 
   const renderComments = (betId) => {
@@ -180,8 +165,7 @@ export default function AmateurTipsterDashboard() {
           </div>
         ))}
         <div className="flex gap-2 mt-2">
-          <input className="p-1 bg-gray-800 text-white w-full"
-            placeholder="Komentar..." value={newComments[betId] || ''}
+          <input className="p-1 bg-gray-800 text-white w-full" placeholder="Komentar..." value={newComments[betId] || ''}
             onChange={(e) => handleCommentChange(betId, e.target.value)} />
           <button onClick={() => handleAddComment(betId)} className="bg-blue-600 px-2 rounded">Komentiraj</button>
         </div>
@@ -194,14 +178,15 @@ export default function AmateurTipsterDashboard() {
       <p><strong>{l.profiles?.nickname || 'Nepoznat'}:</strong> {l.title}</p>
       <p>{l.pairs.map(p => `${p.par} (${p.tip}) - ${p.kvota}`).join(', ')}</p>
       <p>Kvota: {l.total_odds} - Ulog: {l.stake} - Status: {l.status}</p>
-      {l.user_id === userId && l.status === 'pending' && (
-        <div className="flex gap-2 my-1">
-          <button onClick={() => handleStatusChange(l.id, 'won')} className="bg-green-600 px-2 py-1 rounded text-sm">Označi kao dobitan</button>
-          <button onClick={() => handleStatusChange(l.id, 'lost')} className="bg-red-600 px-2 py-1 rounded text-sm">Označi kao gubitan</button>
-        </div>
-      )}
+      <p>Analiza: {l.analysis}</p>
       <p>👍 {likes[l.id]?.length || 0}</p>
       <button onClick={() => handleLike(l.id)} className="text-green-400 text-sm">Lajkaj</button>
+      {l.user_id === userId && l.status === 'pending' && (
+        <div className="flex gap-2 mt-2">
+          <button onClick={() => handleStatusUpdate(l.id, 'won')} className="bg-green-700 px-2 rounded">Označi kao dobitan</button>
+          <button onClick={() => handleStatusUpdate(l.id, 'lost')} className="bg-red-700 px-2 rounded">Označi kao gubitan</button>
+        </div>
+      )}
       {renderComments(l.id)}
     </div>
   );
@@ -212,36 +197,8 @@ export default function AmateurTipsterDashboard() {
         <h1 className="text-2xl font-bold">Amaterski Tipster Dashboard</h1>
         <button onClick={handleLogout} className="bg-red-600 px-4 py-2 rounded">Odjava</button>
       </div>
-
-      <p className="text-lg font-semibold mb-4">Trenutni saldo: {saldo.toFixed(2)} €</p>
+      <p className="mb-2">Saldo: €{saldo.toFixed(2)}</p>
 
       <h2 className="text-xl font-bold mb-2">Unesi novi listić</h2>
       <input value={naslov} onChange={e => setNaslov(e.target.value)} className="mb-1 p-1 w-full bg-gray-800" placeholder="Naslov" />
       <input value={ulog} onChange={e => setUlog(e.target.value)} className="mb-1 p-1 w-full bg-gray-800" placeholder="Ulog (€)" />
-      {parovi.map((p, i) => (
-        <div key={i} className="flex gap-2 mb-1">
-          <input value={p.par} onChange={e => handleChangePar(i, 'par', e.target.value)} placeholder="Par" className="bg-gray-800 p-1 w-1/3" />
-          <input value={p.tip} onChange={e => handleChangePar(i, 'tip', e.target.value)} placeholder="Tip" className="bg-gray-800 p-1 w-1/3" />
-          <input value={p.kvota} onChange={e => handleChangePar(i, 'kvota', e.target.value)} placeholder="Kvota" className="bg-gray-800 p-1 w-1/3" />
-        </div>
-      ))}
-      <button onClick={handleDodajPar} className="bg-gray-700 px-2 py-1 mb-2 rounded">Dodaj par</button>
-      <textarea value={analiza} onChange={e => setAnaliza(e.target.value)} placeholder="Analiza" className="bg-gray-800 w-full p-1 mb-2" />
-      <button onClick={handleUnosListica} className="bg-green-600 px-4 py-2 rounded">Objavi listić</button>
-
-      <div className="mt-6">
-        <button onClick={() => setExpandedPro(!expandedPro)} className="w-full bg-gray-700 p-2 rounded">
-          {expandedPro ? 'Sakrij PRO listiće' : 'Prikaži PRO listiće'}
-        </button>
-        {expandedPro && proListici.map(renderListic)}
-      </div>
-
-      <div className="mt-6">
-        <button onClick={() => setExpandedAmateur(!expandedAmateur)} className="w-full bg-gray-700 p-2 rounded">
-          {expandedAmateur ? 'Sakrij amaterske listiće' : 'Prikaži amaterske listiće'}
-        </button>
-        {expandedAmateur && sviListici.map(renderListic)}
-      </div>
-    </div>
-  );
-}
