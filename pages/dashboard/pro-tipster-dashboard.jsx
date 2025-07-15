@@ -143,6 +143,11 @@ export default function ProTipsterDashboard() {
     }
   };
 
+  const handleStatusChange = async (betId, noviStatus) => {
+    await supabase.from('bets').update({ status: noviStatus }).eq('id', betId);
+    fetchListici(userId); fetchSviListici();
+  };
+
   const renderComments = (betId) => {
     const betComments = comments[betId] || [];
     return (
@@ -170,6 +175,12 @@ export default function ProTipsterDashboard() {
       <p><strong>{l.profiles?.nickname || 'Nepoznat'}:</strong> {l.title}</p>
       <p>{l.pairs.map(p => `${p.par} (${p.tip}) - ${p.kvota}`).join(', ')}</p>
       <p>Kvota: {l.total_odds} - Ulog: {l.stake} - Status: {l.status}</p>
+      {l.user_id === userId && l.status === 'pending' && (
+        <div className="flex gap-2 my-2">
+          <button onClick={() => handleStatusChange(l.id, 'won')} className="bg-green-600 px-2 rounded">Postavi kao Dobitan</button>
+          <button onClick={() => handleStatusChange(l.id, 'lost')} className="bg-red-600 px-2 rounded">Postavi kao Gubitan</button>
+        </div>
+      )}
       <p>👍 {likes[l.id]?.length || 0}</p>
       <button onClick={() => handleLike(l.id)} className="text-green-400 text-sm">Lajkaj</button>
       {renderComments(l.id)}
@@ -182,6 +193,8 @@ export default function ProTipsterDashboard() {
         <h1 className="text-2xl font-bold">PRO Tipster Dashboard</h1>
         <button onClick={handleLogout} className="bg-red-600 px-4 py-2 rounded">Odjava</button>
       </div>
+
+      <h2 className="text-xl font-bold mb-2">Saldo: {saldo.toFixed(2)}€</h2>
 
       <h2 className="text-xl font-bold mb-2">Unesi novi listić</h2>
       <input value={naslov} onChange={e => setNaslov(e.target.value)} className="mb-1 p-1 w-full bg-gray-800" placeholder="Naslov" />
