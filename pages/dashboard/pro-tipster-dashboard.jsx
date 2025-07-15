@@ -12,13 +12,15 @@ const ProTipsterDashboard = () => {
   const [analysis, setAnalysis] = useState('');
   const [totalOdds, setTotalOdds] = useState('');
   const [title, setTitle] = useState('');
+  const [pair, setPair] = useState('');
+  const [pick, setPick] = useState('');
   const [status, setStatus] = useState('pending');
   const [balance, setBalance] = useState(10000);
   const [proRankings, setProRankings] = useState([]);
   const [likes, setLikes] = useState({});
   const [comments, setComments] = useState({});
   const [newComments, setNewComments] = useState({});
-  const [showAllBets, setShowAllBets] = useState(true);
+  const [filter, setFilter] = useState('all');
 
   const router = useRouter();
 
@@ -92,7 +94,7 @@ const ProTipsterDashboard = () => {
   }, []);
 
   const handleAddBet = async () => {
-    if (!title || !analysis || !stake || !totalOdds) return;
+    if (!title || !analysis || !stake || !totalOdds || !pair || !pick) return;
 
     const { error } = await supabase.from('bets').insert({
       user_id: user.id,
@@ -101,6 +103,8 @@ const ProTipsterDashboard = () => {
       stake: parseFloat(stake),
       total_odds: parseFloat(totalOdds),
       status,
+      pair,
+      pick,
     });
 
     if (!error) {
@@ -108,6 +112,8 @@ const ProTipsterDashboard = () => {
       setAnalysis('');
       setStake('');
       setTotalOdds('');
+      setPair('');
+      setPick('');
       setStatus('pending');
       const { data: updated } = await supabase
         .from('bets')
@@ -171,6 +177,7 @@ const ProTipsterDashboard = () => {
       <p className="text-sm text-gray-400">{new Date(bet.created_at).toLocaleString()}</p>
       <p className="text-xl font-bold">{bet.title}</p>
       <p className="text-md">Autor: <span className="text-blue-400">{bet.profiles?.nickname || 'Nepoznat'}</span></p>
+      <p>Par: <strong>{bet.pair}</strong> | Tip: <strong>{bet.pick}</strong></p>
       <p>Analiza: {bet.analysis}</p>
       <p>Ulog: €{bet.stake} | Kvota: {bet.total_odds}</p>
       <p>Status: {bet.status}</p>
@@ -206,6 +213,12 @@ const ProTipsterDashboard = () => {
     </div>
   );
 
+  const filteredBets = bets.filter(b => {
+    if (filter === 'pro') return b.profiles?.role === 'pro_tipster';
+    if (filter === 'amateur') return b.profiles?.role !== 'pro_tipster';
+    return true;
+  });
+
   return (
     <div className="min-h-screen bg-[#0f0f0f] text-white p-6">
       <div className="flex justify-between items-center mb-6">
@@ -218,6 +231,8 @@ const ProTipsterDashboard = () => {
       <div className="bg-[#1a1a1a] p-4 rounded mb-6">
         <h2 className="text-lg font-bold mb-2">Unesi novi listić</h2>
         <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Naslov" className="w-full mb-2 p-2 bg-[#2a2a2a] rounded" />
+        <input value={pair} onChange={e => setPair(e.target.value)} placeholder="Par (npr. Dinamo - Hajduk)" className="w-full mb-2 p-2 bg-[#2a2a2a] rounded" />
+        <input value={pick} onChange={e => setPick(e.target.value)} placeholder="Tip (npr. 1, X2, Over 2.5)" className="w-full mb-2 p-2 bg-[#2a2a2a] rounded" />
         <textarea value={analysis} onChange={e => setAnalysis(e.target.value)} placeholder="Analiza" className="w-full mb-2 p-2 bg-[#2a2a2a] rounded" />
         <input value={stake} onChange={e => setStake(e.target.value)} placeholder="Ulog (€)" type="number" className="w-full mb-2 p-2 bg-[#2a2a2a] rounded" />
         <input value={totalOdds} onChange={e => setTotalOdds(e.target.value)} placeholder="Kvota" type="number" step="0.01" className="w-full mb-2 p-2 bg-[#2a2a2a] rounded" />
@@ -230,10 +245,12 @@ const ProTipsterDashboard = () => {
       ))}
 
       <div className="mt-6">
-        <button onClick={() => setShowAllBets(!showAllBets)} className="text-lg font-semibold text-blue-400">
-          {showAllBets ? '▼ Sakrij listiće' : '▲ Prikaži listiće'}
-        </button>
-        {showAllBets && bets.filter(b => b.profiles?.role === 'pro_tipster').map(renderBet)}
+        <select onChange={e => setFilter(e.target.value)} value={filter} className="mb-4 bg-[#2a2a2a] p-2 rounded">
+          <option value="all">Prikaži sve listiće</option>
+          <option value="pro">Samo PRO tipsteri</option>
+          <option value="amateur">Samo amateri</option>
+        </select>
+        {filteredBets.map(renderBet)}
       </div>
     </div>
   );
