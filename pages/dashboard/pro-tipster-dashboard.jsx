@@ -4,7 +4,7 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { useRouter } from 'next/router';
 import { v4 as uuidv4 } from 'uuid';
 
-export default function AmateurTipsterDashboard() {
+export default function ProTipsterDashboard() {
   // Definisanje svih state-ova za korisničke podatke i listiće
   const [userId, setUserId] = useState(null); // Sprema ID prijavljenog korisnika
   const [nickname, setNickname] = useState(''); // Sprema nadimak korisnika
@@ -192,7 +192,7 @@ export default function AmateurTipsterDashboard() {
   return (
     <div className="p-4 text-white bg-black min-h-screen">
       <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">Amaterski Tipster Dashboard</h1>
+        <h1 className="text-2xl font-bold">Pro Tipster Dashboard</h1>
         <button onClick={handleLogout} className="bg-red-600 px-4 py-2 rounded">Odjava</button>
       </div>
 
