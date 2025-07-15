@@ -16,17 +16,9 @@ export default function ProTipsterDashboard() {
   const [mojiListici, setMojiListici] = useState([]);
   const [proListici, setProListici] = useState([]);
   const [amateurListici, setAmateurListici] = useState([]);
-  const [comments, setComments] = useState({});
-  const [likes, setLikes] = useState({});
-  const [newComments, setNewComments] = useState({});
   const [expandedPro, setExpandedPro] = useState(true);
   const [expandedAmateur, setExpandedAmateur] = useState(true);
   const router = useRouter();
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push('/');
-  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -59,54 +51,12 @@ export default function ProTipsterDashboard() {
   const fetchSviListici = async () => {
     const { data: pro } = await supabase.from('bets').select('*, profiles(nickname)').eq('role', 'pro_tipster');
     const { data: amateur } = await supabase.from('bets').select('*, profiles(nickname)').eq('role', 'amateur_tipster');
-
     setProListici(pro || []);
     setAmateurListici(amateur || []);
-
-    const allBets = [...(pro || []), ...(amateur || [])];
-    const betIds = allBets.map(b => b.id);
-
-    const { data: komentarData } = await supabase.from('comments').select('*').in('bet_id', betIds);
-    const { data: likeData } = await supabase.from('likes').select('*').in('bet_id', betIds);
-
-    const groupedComments = {};
-    komentarData?.forEach(c => {
-      if (!groupedComments[c.bet_id]) groupedComments[c.bet_id] = [];
-      groupedComments[c.bet_id].push(c);
-    });
-    setComments(groupedComments);
-
-    const groupedLikes = {};
-    likeData?.forEach(l => {
-      if (!groupedLikes[l.bet_id]) groupedLikes[l.bet_id] = [];
-      groupedLikes[l.bet_id].push(l);
-    });
-    setLikes(groupedLikes);
   };
 
-  const handleCommentChange = (betId, val) => {
-    setNewComments({ ...newComments, [betId]: val });
-  };
-
-  const handleAddComment = async (betId) => {
-    const content = newComments[betId];
-    if (!content) return;
-    await supabase.from('comments').insert([{ bet_id: betId, user_id: userId, content, nickname }]);
-    setNewComments({ ...newComments, [betId]: '' });
-    fetchSviListici();
-  };
-
-  const handleDeleteComment = async (id) => {
-    await supabase.from('comments').delete().eq('id', id);
-    fetchSviListici();
-  };
-
-  const handleLike = async (betId) => {
-    const existing = await supabase.from('likes').select('*').eq('bet_id', betId).eq('user_id', userId);
-    if (!existing.data.length) {
-      await supabase.from('likes').insert([{ bet_id: betId, user_id: userId }]);
-      fetchSviListici();
-    }
+  const ukupnaKvota = () => {
+    return parovi.reduce((acc, p) => acc * parseFloat(p.kvota || 1), 1).toFixed(2);
   };
 
   const handleChangePar = (i, f, v) => {
@@ -116,10 +66,6 @@ export default function ProTipsterDashboard() {
   };
 
   const handleDodajPar = () => setParovi([...parovi, { par: '', kvota: '', tip: '' }]);
-
-  const ukupnaKvota = () => {
-    return parovi.reduce((acc, p) => acc * parseFloat(p.kvota || 1), 1).toFixed(2);
-  };
 
   const handleUnosListica = async () => {
     if (!naslov || !ulog || !parovi.length) return alert("Popunite sve podatke!");
@@ -137,55 +83,42 @@ export default function ProTipsterDashboard() {
       created_at: new Date().toISOString()
     }]);
     if (!error) {
-      setNaslov(''); setUlog(''); setAnaliza('');
-      setParovi([{ par: '', kvota: '', tip: '' }]); setStatus('pending');
-      fetchListici(userId); fetchSviListici();
+      setNaslov('');
+      setUlog('');
+      setAnaliza('');
+      setParovi([{ par: '', kvota: '', tip: '' }]);
+      setStatus('pending');
+      fetchListici(userId);
+      fetchSviListici();
     }
   };
 
-  const handleStatusChange = async (betId, noviStatus) => {
-    await supabase.from('bets').update({ status: noviStatus }).eq('id', betId);
-    fetchListici(userId); fetchSviListici();
-  };
-
-  const renderComments = (betId) => {
-    const betComments = comments[betId] || [];
-    return (
-      <div className="ml-4 mt-2">
-        {betComments.map(c => (
-          <div key={c.id} className="flex justify-between text-sm border-b border-gray-600 py-1">
-            <span><strong>{c.nickname}</strong>: {c.content}</span>
-            {c.user_id === userId && (
-              <button onClick={() => handleDeleteComment(c.id)} className="text-red-400 text-xs ml-2">Obriši</button>
-            )}
-          </div>
-        ))}
-        <div className="flex gap-2 mt-2">
-          <input className="p-1 bg-gray-800 text-white w-full"
-            placeholder="Komentar..." value={newComments[betId] || ''}
-            onChange={(e) => handleCommentChange(betId, e.target.value)} />
-          <button onClick={() => handleAddComment(betId)} className="bg-blue-600 px-2 rounded">Komentiraj</button>
-        </div>
-      </div>
-    );
+  const oznaciKao = async (betId, novoStanje) => {
+    const { error } = await supabase.from('bets').update({ status: novoStanje }).eq('id', betId).eq('user_id', userId);
+    if (!error) {
+      fetchListici(userId);
+      fetchSviListici();
+    }
   };
 
   const renderListic = (l) => (
     <div key={l.id} className="border-b border-gray-600 py-2">
       <p><strong>{l.profiles?.nickname || 'Nepoznat'}:</strong> {l.title}</p>
-      <p>{l.pairs.map(p => `${p.par} (${p.tip}) - ${p.kvota}`).join(', ')}</p>
+      <p>{l.pairs?.map(p => `${p.par} (${p.tip}) - ${p.kvota}`).join(', ')}</p>
       <p>Kvota: {l.total_odds} - Ulog: {l.stake} - Status: {l.status}</p>
       {l.user_id === userId && l.status === 'pending' && (
         <div className="flex gap-2 my-2">
-          <button onClick={() => handleStatusChange(l.id, 'won')} className="bg-green-600 px-2 rounded">Postavi kao Dobitan</button>
-          <button onClick={() => handleStatusChange(l.id, 'lost')} className="bg-red-600 px-2 rounded">Postavi kao Gubitan</button>
+          <button onClick={() => oznaciKao(l.id, 'won')} className="bg-green-600 px-2 py-1 rounded">Označi kao dobitan</button>
+          <button onClick={() => oznaciKao(l.id, 'lost')} className="bg-red-600 px-2 py-1 rounded">Označi kao gubitan</button>
         </div>
       )}
-      <p>👍 {likes[l.id]?.length || 0}</p>
-      <button onClick={() => handleLike(l.id)} className="text-green-400 text-sm">Lajkaj</button>
-      {renderComments(l.id)}
     </div>
   );
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push('/');
+  };
 
   return (
     <div className="p-4 text-white bg-black min-h-screen">
@@ -193,8 +126,7 @@ export default function ProTipsterDashboard() {
         <h1 className="text-2xl font-bold">PRO Tipster Dashboard</h1>
         <button onClick={handleLogout} className="bg-red-600 px-4 py-2 rounded">Odjava</button>
       </div>
-
-      <h2 className="text-xl font-bold mb-2">Saldo: {saldo.toFixed(2)}€</h2>
+      <p className="text-lg font-semibold mb-4">Tvoj saldo: €{saldo.toFixed(2)}</p>
 
       <h2 className="text-xl font-bold mb-2">Unesi novi listić</h2>
       <input value={naslov} onChange={e => setNaslov(e.target.value)} className="mb-1 p-1 w-full bg-gray-800" placeholder="Naslov" />
