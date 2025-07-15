@@ -1,36 +1,30 @@
-// Uvoz potrebnih React hookova, Supabase klijenta, Next.js routera i UUID generatora
+// /pages/dashboard/pro-tipster-dashboard.jsx
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useRouter } from 'next/router';
 import { v4 as uuidv4 } from 'uuid';
 
 export default function ProTipsterDashboard() {
-  // Definisanje svih state-ova za korisničke podatke i listiće
-  const [userId, setUserId] = useState(null); // Sprema ID prijavljenog korisnika
-  const [nickname, setNickname] = useState(''); // Sprema nadimak korisnika
-  const [saldo, setSaldo] = useState(10000); // Početni saldo
-  const [parovi, setParovi] = useState([{ par: '', kvota: '', tip: '' }]); // Lista parova u listiću
-  const [ulog, setUlog] = useState(''); // Ulog za listić
-  const [naslov, setNaslov] = useState(''); // Naslov listića
-  const [analiza, setAnaliza] = useState(''); // Analiza listića
-  const [status, setStatus] = useState('pending'); // Status listića
-  const [mojiListici, setMojiListici] = useState([]); // Moji objavljeni listići
-  const [sviListici, setSviListici] = useState([]); // Amaterski listići svih korisnika
-  const [proListici, setProListici] = useState([]); // Listići PRO tipstera
-  const [comments, setComments] = useState({}); // Komentari po listićima
-  const [likes, setLikes] = useState({}); // Lajkovi po listićima
-  const [newComments, setNewComments] = useState({}); // Novi komentar koji se unosi
-  const [expandedPro, setExpandedPro] = useState(true); // Prikaz/sakrivanje PRO sekcije
-  const [expandedAmateur, setExpandedAmateur] = useState(true); // Prikaz/sakrivanje amaterske sekcije
+  <h2 className="text-lg mt-2">Tvoj saldo: <span className="font-bold text-yellow-400">{saldo.toFixed(2)}€</span></h2>
+
+  const [userId, setUserId] = useState(null);
+  const [nickname, setNickname] = useState('');
+  const [saldo, setSaldo] = useState(10000);
+  const [parovi, setParovi] = useState([{ par: '', kvota: '', tip: '' }]);
+  const [ulog, setUlog] = useState('');
+  const [naslov, setNaslov] = useState('');
+  const [analiza, setAnaliza] = useState('');
+  const [status, setStatus] = useState('pending');
+  const [proListici, setProListici] = useState([]);
+  const [amateurListici, setAmateurListici] = useState([]);
+  const [comments, setComments] = useState({});
+  const [likes, setLikes] = useState({});
+  const [newComments, setNewComments] = useState({});
+  const [expandedPro, setExpandedPro] = useState(true);
+  const [expandedAmateur, setExpandedAmateur] = useState(true);
   const router = useRouter();
 
-  // Odjava korisnika
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push('/');
-  };
 
-  // Dohvat korisničkih podataka i listića nakon učitavanja stranice
   useEffect(() => {
     const fetchData = async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -40,17 +34,67 @@ export default function ProTipsterDashboard() {
       const { data: profile } = await supabase.from('profiles').select('nickname').eq('id', user.id).single();
       if (profile) setNickname(profile.nickname);
 
-      await fetchListici(user.id); // Dohvati moje listiće
-      await fetchSviListici(); // Dohvati sve PRO i amaterske listiće
+      await fetchListici(user.id); // salda se računa tu
+      await fetchSviListici();
     };
     fetchData();
   }, []);
-
-  // Dohvat mojih listića i računanje salda
   const fetchListici = async (id) => {
     const { data } = await supabase.from('bets').select('*').eq('user_id', id);
     if (data) {
       setMojiListici(data);
+      let saldoTemp = 10000;
+      data.forEach(bet => {
+        if (bet.status === 'won') {
+          saldoTemp += bet.stake * bet.total_odds;
+        } else if (bet.status === 'lost') {
+          saldoTemp -= bet.stake;
+        }
+      });
+      setSaldo(saldoTemp);
+    }
+  };
+  const handleStatusChange = async (betId, newStatus) => {
+    const { error } = await supabase
+      .from('bets')
+      .update({ status: newStatus })
+      .eq('id', betId)
+      .eq('user_id', userId); // samo vlasnik može mijenjati
+
+    if (!error) {
+      await fetchListici(userId);
+      await fetchSviListici();
+    }
+  };
+  {l.user_id === userId && l.status === 'pending' && (
+    <div className="flex gap-2 mt-1">
+      <button onClick={() => handleStatusChange(l.id, 'won')} className="bg-green-600 px-2 py-1 rounded text-sm">
+        Označi kao dobitan
+      </button>
+      <button onClick={() => handleStatusChange(l.id, 'lost')} className="bg-red-600 px-2 py-1 rounded text-sm">
+        Označi kao gubitan
+      </button>
+    </div>
+  )}
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return router.push('/');
+      setUserId(user.id);
+
+      const { data: profile } = await supabase.from('profiles').select('nickname').eq('id', user.id).single();
+      if (profile) setNickname(profile.nickname);
+
+      await fetchSviListici();
+      await fetchSaldo(user.id);
+    };
+    fetchData();
+  }, []);
+
+  const fetchSaldo = async (id) => {
+    const { data } = await supabase.from('bets').select('*').eq('user_id', id);
+    if (data) {
       let saldoTemp = 10000;
       data.forEach(bet => {
         if (bet.status === 'won') saldoTemp += bet.stake * bet.total_odds;
@@ -60,17 +104,14 @@ export default function ProTipsterDashboard() {
     }
   };
 
-  // Dohvat svih listića i povezivanje s komentarima i lajkovima
   const fetchSviListici = async () => {
     const { data: pro } = await supabase.from('bets').select('*, profiles(nickname)').eq('role', 'pro_tipster');
     const { data: amateur } = await supabase.from('bets').select('*, profiles(nickname)').eq('role', 'amateur_tipster');
-
     setProListici(pro || []);
-    setSviListici(amateur || []);
+    setAmateurListici(amateur || []);
 
     const allBets = [...(pro || []), ...(amateur || [])];
     const betIds = allBets.map(b => b.id);
-
     const { data: komentarData } = await supabase.from('comments').select('*').in('bet_id', betIds);
     const { data: likeData } = await supabase.from('likes').select('*').in('bet_id', betIds);
 
@@ -89,7 +130,55 @@ export default function ProTipsterDashboard() {
     setLikes(groupedLikes);
   };
 
-  // Obrada komentara
+  const handleUnosListica = async () => {
+    if (!naslov || !ulog || !parovi.length) return alert("Popunite sve podatke!");
+    const kvota = parseFloat(ukupnaKvota());
+    const { error } = await supabase.from('bets').insert([{
+      id: uuidv4(),
+      user_id: userId,
+      title: naslov,
+      stake: parseFloat(ulog),
+      total_odds: kvota,
+      analysis: analiza,
+      status,
+      role: 'pro_tipster',
+      pairs: parovi,
+      created_at: new Date().toISOString()
+    }]);
+    if (!error) {
+      setNaslov(''); setUlog(''); setAnaliza('');
+      setParovi([{ par: '', kvota: '', tip: '' }]); setStatus('pending');
+      fetchSviListici(); fetchSaldo(userId);
+    }
+  };
+
+  const handleChangeStatus = async (id, newStatus) => {
+    await supabase.from('bets').update({ status: newStatus }).eq('id', id);
+    fetchSviListici();
+    fetchSaldo(userId);
+  };
+
+  const ukupnaKvota = () => {
+    return parovi.reduce((acc, p) => acc * parseFloat(p.kvota || 1), 1).toFixed(2);
+  };
+
+  const renderListic = (l) => (
+    <div key={l.id} className="border-b border-gray-600 py-2">
+      <p><strong>{l.profiles?.nickname || 'Nepoznat'}:</strong> {l.title}</p>
+      <p>{l.pairs.map(p => `${p.par} (${p.tip}) - ${p.kvota}`).join(', ')}</p>
+      <p>Kvota: {l.total_odds} - Ulog: {l.stake} - Status: {l.status}</p>
+      {l.user_id === userId && l.status === 'pending' && (
+        <div className="flex gap-2 my-2">
+          <button onClick={() => handleChangeStatus(l.id, 'won')} className="bg-green-600 px-2 rounded">Označi kao dobitan</button>
+          <button onClick={() => handleChangeStatus(l.id, 'lost')} className="bg-red-600 px-2 rounded">Označi kao gubitan</button>
+        </div>
+      )}
+      <p>👍 {likes[l.id]?.length || 0}</p>
+      <button onClick={() => handleLike(l.id)} className="text-green-400 text-sm">Lajkaj</button>
+      {renderComments(l.id)}
+    </div>
+  );
+
   const handleCommentChange = (betId, val) => {
     setNewComments({ ...newComments, [betId]: val });
   };
@@ -107,7 +196,6 @@ export default function ProTipsterDashboard() {
     fetchSviListici();
   };
 
-  // Obrada lajkova
   const handleLike = async (betId) => {
     const existing = await supabase.from('likes').select('*').eq('bet_id', betId).eq('user_id', userId);
     if (!existing.data.length) {
@@ -116,7 +204,6 @@ export default function ProTipsterDashboard() {
     }
   };
 
-  // Dodavanje parova u listić
   const handleChangePar = (i, f, v) => {
     const novi = [...parovi];
     novi[i][f] = v;
@@ -125,35 +212,6 @@ export default function ProTipsterDashboard() {
 
   const handleDodajPar = () => setParovi([...parovi, { par: '', kvota: '', tip: '' }]);
 
-  // Računanje ukupne kvote
-  const ukupnaKvota = () => {
-    return parovi.reduce((acc, p) => acc * parseFloat(p.kvota || 1), 1).toFixed(2);
-  };
-
-  // Dodavanje novog listića
-  const handleUnosListica = async () => {
-    if (!naslov || !ulog || !parovi.length) return alert("Popunite sve podatke!");
-    const kvota = parseFloat(ukupnaKvota());
-    const { error } = await supabase.from('bets').insert([{
-      id: uuidv4(),
-      user_id: userId,
-      title: naslov,
-      stake: parseFloat(ulog),
-      total_odds: kvota,
-      analysis: analiza,
-      status,
-      role: 'amateur_tipster',
-      pairs: parovi,
-      created_at: new Date().toISOString()
-    }]);
-    if (!error) {
-      setNaslov(''); setUlog(''); setAnaliza('');
-      setParovi([{ par: '', kvota: '', tip: '' }]); setStatus('pending');
-      fetchListici(userId); fetchSviListici();
-    }
-  };
-
-  // Prikaz komentara
   const renderComments = (betId) => {
     const betComments = comments[betId] || [];
     return (
@@ -176,27 +234,19 @@ export default function ProTipsterDashboard() {
     );
   };
 
-  // Prikaz pojedinog listića
-  const renderListic = (l) => (
-    <div key={l.id} className="border-b border-gray-600 py-2">
-      <p><strong>{l.profiles?.nickname || 'Nepoznat'}:</strong> {l.title}</p>
-      <p>{l.pairs.map(p => `${p.par} (${p.tip}) - ${p.kvota}`).join(', ')}</p>
-      <p>Kvota: {l.total_odds} - Ulog: {l.stake} - Status: {l.status}</p>
-      <p>👍 {likes[l.id]?.length || 0}</p>
-      <button onClick={() => handleLike(l.id)} className="text-green-400 text-sm">Lajkaj</button>
-      {renderComments(l.id)}
-    </div>
-  );
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push('/');
+  };
 
-  // Glavni JSX prikaz stranice
   return (
     <div className="p-4 text-white bg-black min-h-screen">
       <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">Pro Tipster Dashboard</h1>
+        <h1 className="text-2xl font-bold">PRO Tipster Dashboard</h1>
         <button onClick={handleLogout} className="bg-red-600 px-4 py-2 rounded">Odjava</button>
       </div>
 
-      {/* Forma za unos novog listića */}
+      <h2 className="text-xl font-bold mb-2">Saldo: {saldo.toFixed(2)}€</h2>
       <h2 className="text-xl font-bold mb-2">Unesi novi listić</h2>
       <input value={naslov} onChange={e => setNaslov(e.target.value)} className="mb-1 p-1 w-full bg-gray-800" placeholder="Naslov" />
       <input value={ulog} onChange={e => setUlog(e.target.value)} className="mb-1 p-1 w-full bg-gray-800" placeholder="Ulog (€)" />
@@ -211,7 +261,6 @@ export default function ProTipsterDashboard() {
       <textarea value={analiza} onChange={e => setAnaliza(e.target.value)} placeholder="Analiza" className="bg-gray-800 w-full p-1 mb-2" />
       <button onClick={handleUnosListica} className="bg-green-600 px-4 py-2 rounded">Objavi listić</button>
 
-      {/* Prikaz PRO i amaterskih listića */}
       <div className="mt-6">
         <button onClick={() => setExpandedPro(!expandedPro)} className="w-full bg-gray-700 p-2 rounded">
           {expandedPro ? 'Sakrij PRO listiće' : 'Prikaži PRO listiće'}
@@ -223,7 +272,7 @@ export default function ProTipsterDashboard() {
         <button onClick={() => setExpandedAmateur(!expandedAmateur)} className="w-full bg-gray-700 p-2 rounded">
           {expandedAmateur ? 'Sakrij amaterske listiće' : 'Prikaži amaterske listiće'}
         </button>
-        {expandedAmateur && sviListici.map(renderListic)}
+        {expandedAmateur && amateurListici.map(renderListic)}
       </div>
     </div>
   );
