@@ -1,11 +1,9 @@
-
-// /pages/dashboard/amateur-tipster-dashboard.jsx
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useRouter } from 'next/router';
 import { v4 as uuidv4 } from 'uuid';
 
-export default function AmateurTipsterDashboard() {
+export default function ProTipsterDashboard() {
   const [userId, setUserId] = useState(null);
   const [nickname, setNickname] = useState('');
   const [saldo, setSaldo] = useState(10000);
@@ -16,7 +14,7 @@ export default function AmateurTipsterDashboard() {
   const [status, setStatus] = useState('pending');
   const [mojiListici, setMojiListici] = useState([]);
   const [sviListici, setSviListici] = useState([]);
-  const [proListici, setProListici] = useState([]);
+  const [amateurListici, setAmateurListici] = useState([]);
   const [comments, setComments] = useState({});
   const [likes, setLikes] = useState({});
   const [newComments, setNewComments] = useState({});
@@ -38,17 +36,22 @@ export default function AmateurTipsterDashboard() {
       const { data: profile } = await supabase.from('profiles').select('nickname').eq('id', user.id).single();
       if (profile) setNickname(profile.nickname);
 
-      await fetchListici(user.id);
+      await fetchMojeListice(user.id);
       await fetchSviListici();
     };
     fetchData();
   }, []);
 
-  const fetchListici = async (id) => {
+  const fetchMojeListice = async (id) => {
     const { data } = await supabase.from('bets').select('*').eq('user_id', id);
     if (data) {
       setMojiListici(data);
-      updateSaldo(data);
+      let tempSaldo = 10000;
+      data.forEach(b => {
+        if (b.status === 'won') tempSaldo += b.stake * b.total_odds;
+        else if (b.status === 'lost') tempSaldo -= b.stake;
+      });
+      setSaldo(tempSaldo);
     }
   };
 
@@ -56,8 +59,8 @@ export default function AmateurTipsterDashboard() {
     const { data: pro } = await supabase.from('bets').select('*, profiles(nickname)').eq('role', 'pro_tipster');
     const { data: amateur } = await supabase.from('bets').select('*, profiles(nickname)').eq('role', 'amateur_tipster');
 
-    setProListici(pro || []);
-    setSviListici(amateur || []);
+    setSviListici(pro || []);
+    setAmateurListici(amateur || []);
 
     const allBets = [...(pro || []), ...(amateur || [])];
     const betIds = allBets.map(b => b.id);
@@ -80,13 +83,45 @@ export default function AmateurTipsterDashboard() {
     setLikes(groupedLikes);
   };
 
-  const updateSaldo = (listici) => {
-    let saldoTemp = 10000;
-    listici.forEach(bet => {
-      if (bet.status === 'won') saldoTemp += bet.stake * bet.total_odds;
-      else if (bet.status === 'lost') saldoTemp -= bet.stake;
-    });
-    setSaldo(saldoTemp);
+  const ukupnaKvota = () => {
+    return parovi.reduce((acc, p) => acc * parseFloat(p.kvota || 1), 1).toFixed(2);
+  };
+
+  const handleUnosListica = async () => {
+    if (!naslov || !ulog || !parovi.length) return alert("Popunite sve podatke!");
+    const kvota = parseFloat(ukupnaKvota());
+    const { error } = await supabase.from('bets').insert([{
+      id: uuidv4(),
+      user_id: userId,
+      title: naslov,
+      stake: parseFloat(ulog),
+      total_odds: kvota,
+      analysis: analiza,
+      status,
+      role: 'pro_tipster',
+      pairs: parovi,
+      created_at: new Date().toISOString()
+    }]);
+    if (!error) {
+      setNaslov(''); setUlog(''); setAnaliza('');
+      setParovi([{ par: '', kvota: '', tip: '' }]); setStatus('pending');
+      fetchMojeListice(userId); fetchSviListici();
+    }
+  };
+
+  const handleChangePar = (i, f, v) => {
+    const novi = [...parovi];
+    novi[i][f] = v;
+    setParovi(novi);
+  };
+
+  const handleDodajPar = () => setParovi([...parovi, { par: '', kvota: '', tip: '' }]);
+
+  const handleChangeStatus = async (betId, newStatus) => {
+    const bet = mojiListici.find(b => b.id === betId);
+    if (!bet || (bet.status === 'won' || bet.status === 'lost')) return;
+    await supabase.from('bets').update({ status: newStatus }).eq('id', betId);
+    fetchMojeListice(userId); fetchSviListici();
   };
 
   const handleCommentChange = (betId, val) => {
@@ -114,44 +149,6 @@ export default function AmateurTipsterDashboard() {
     }
   };
 
-  const handleChangePar = (i, f, v) => {
-    const novi = [...parovi];
-    novi[i][f] = v;
-    setParovi(novi);
-  };
-
-  const handleDodajPar = () => setParovi([...parovi, { par: '', kvota: '', tip: '' }]);
-
-  const ukupnaKvota = () => parovi.reduce((acc, p) => acc * parseFloat(p.kvota || 1), 1).toFixed(2);
-
-  const handleUnosListica = async () => {
-    if (!naslov || !ulog || !parovi.length) return alert("Popunite sve podatke!");
-    const kvota = parseFloat(ukupnaKvota());
-    const { error } = await supabase.from('bets').insert([{
-      id: uuidv4(),
-      user_id: userId,
-      title: naslov,
-      stake: parseFloat(ulog),
-      total_odds: kvota,
-      analysis: analiza,
-      status,
-      role: 'amateur_tipster',
-      pairs: parovi,
-      created_at: new Date().toISOString()
-    }]);
-    if (!error) {
-      setNaslov(''); setUlog(''); setAnaliza('');
-      setParovi([{ par: '', kvota: '', tip: '' }]); setStatus('pending');
-      fetchListici(userId); fetchSviListici();
-    }
-  };
-
-  const handleStatusUpdate = async (id, newStatus) => {
-    await supabase.from('bets').update({ status: newStatus }).eq('id', id);
-    fetchListici(userId);
-    fetchSviListici();
-  };
-
   const renderComments = (betId) => {
     const betComments = comments[betId] || [];
     return (
@@ -165,7 +162,8 @@ export default function AmateurTipsterDashboard() {
           </div>
         ))}
         <div className="flex gap-2 mt-2">
-          <input className="p-1 bg-gray-800 text-white w-full" placeholder="Komentar..." value={newComments[betId] || ''}
+          <input className="p-1 bg-gray-800 text-white w-full"
+            placeholder="Komentar..." value={newComments[betId] || ''}
             onChange={(e) => handleCommentChange(betId, e.target.value)} />
           <button onClick={() => handleAddComment(betId)} className="bg-blue-600 px-2 rounded">Komentiraj</button>
         </div>
@@ -178,13 +176,12 @@ export default function AmateurTipsterDashboard() {
       <p><strong>{l.profiles?.nickname || 'Nepoznat'}:</strong> {l.title}</p>
       <p>{l.pairs.map(p => `${p.par} (${p.tip}) - ${p.kvota}`).join(', ')}</p>
       <p>Kvota: {l.total_odds} - Ulog: {l.stake} - Status: {l.status}</p>
-      <p>Analiza: {l.analysis}</p>
       <p>👍 {likes[l.id]?.length || 0}</p>
       <button onClick={() => handleLike(l.id)} className="text-green-400 text-sm">Lajkaj</button>
       {l.user_id === userId && l.status === 'pending' && (
-        <div className="flex gap-2 mt-2">
-          <button onClick={() => handleStatusUpdate(l.id, 'won')} className="bg-green-700 px-2 rounded">Označi kao dobitan</button>
-          <button onClick={() => handleStatusUpdate(l.id, 'lost')} className="bg-red-700 px-2 rounded">Označi kao gubitan</button>
+        <div className="flex gap-2 mt-1">
+          <button onClick={() => handleChangeStatus(l.id, 'won')} className="bg-green-600 px-2 rounded">Označi kao dobitan</button>
+          <button onClick={() => handleChangeStatus(l.id, 'lost')} className="bg-red-600 px-2 rounded">Označi kao gubitan</button>
         </div>
       )}
       {renderComments(l.id)}
@@ -194,11 +191,37 @@ export default function AmateurTipsterDashboard() {
   return (
     <div className="p-4 text-white bg-black min-h-screen">
       <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">Amaterski Tipster Dashboard</h1>
+        <h1 className="text-2xl font-bold">PRO Tipster Dashboard</h1>
         <button onClick={handleLogout} className="bg-red-600 px-4 py-2 rounded">Odjava</button>
       </div>
-      <p className="mb-2">Saldo: €{saldo.toFixed(2)}</p>
 
       <h2 className="text-xl font-bold mb-2">Unesi novi listić</h2>
       <input value={naslov} onChange={e => setNaslov(e.target.value)} className="mb-1 p-1 w-full bg-gray-800" placeholder="Naslov" />
       <input value={ulog} onChange={e => setUlog(e.target.value)} className="mb-1 p-1 w-full bg-gray-800" placeholder="Ulog (€)" />
+      {parovi.map((p, i) => (
+        <div key={i} className="flex gap-2 mb-1">
+          <input value={p.par} onChange={e => handleChangePar(i, 'par', e.target.value)} placeholder="Par" className="bg-gray-800 p-1 w-1/3" />
+          <input value={p.tip} onChange={e => handleChangePar(i, 'tip', e.target.value)} placeholder="Tip" className="bg-gray-800 p-1 w-1/3" />
+          <input value={p.kvota} onChange={e => handleChangePar(i, 'kvota', e.target.value)} placeholder="Kvota" className="bg-gray-800 p-1 w-1/3" />
+        </div>
+      ))}
+      <button onClick={handleDodajPar} className="bg-gray-700 px-2 py-1 mb-2 rounded">Dodaj par</button>
+      <textarea value={analiza} onChange={e => setAnaliza(e.target.value)} placeholder="Analiza" className="bg-gray-800 w-full p-1 mb-2" />
+      <button onClick={handleUnosListica} className="bg-green-600 px-4 py-2 rounded">Objavi listić</button>
+
+      <div className="mt-6">
+        <button onClick={() => setExpandedPro(!expandedPro)} className="w-full bg-gray-700 p-2 rounded">
+          {expandedPro ? 'Sakrij PRO listiće' : 'Prikaži PRO listiće'}
+        </button>
+        {expandedPro && sviListici.map(renderListic)}
+      </div>
+
+      <div className="mt-6">
+        <button onClick={() => setExpandedAmateur(!expandedAmateur)} className="w-full bg-gray-700 p-2 rounded">
+          {expandedAmateur ? 'Sakrij amaterske listiće' : 'Prikaži amaterske listiće'}
+        </button>
+        {expandedAmateur && amateurListici.map(renderListic)}
+      </div>
+    </div>
+  );
+}
