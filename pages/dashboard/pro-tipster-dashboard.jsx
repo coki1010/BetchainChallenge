@@ -16,9 +16,17 @@ export default function ProTipsterDashboard() {
   const [mojiListici, setMojiListici] = useState([]);
   const [proListici, setProListici] = useState([]);
   const [amateurListici, setAmateurListici] = useState([]);
+  const [comments, setComments] = useState({});
+  const [likes, setLikes] = useState({});
+  const [newComments, setNewComments] = useState({});
   const [expandedPro, setExpandedPro] = useState(true);
   const [expandedAmateur, setExpandedAmateur] = useState(true);
   const router = useRouter();
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push('/');
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -51,12 +59,9 @@ export default function ProTipsterDashboard() {
   const fetchSviListici = async () => {
     const { data: pro } = await supabase.from('bets').select('*, profiles(nickname)').eq('role', 'pro_tipster');
     const { data: amateur } = await supabase.from('bets').select('*, profiles(nickname)').eq('role', 'amateur_tipster');
+
     setProListici(pro || []);
     setAmateurListici(amateur || []);
-  };
-
-  const ukupnaKvota = () => {
-    return parovi.reduce((acc, p) => acc * parseFloat(p.kvota || 1), 1).toFixed(2);
   };
 
   const handleChangePar = (i, f, v) => {
@@ -66,6 +71,10 @@ export default function ProTipsterDashboard() {
   };
 
   const handleDodajPar = () => setParovi([...parovi, { par: '', kvota: '', tip: '' }]);
+
+  const ukupnaKvota = () => {
+    return parovi.reduce((acc, p) => acc * parseFloat(p.kvota || 1), 1).toFixed(2);
+  };
 
   const handleUnosListica = async () => {
     if (!naslov || !ulog || !parovi.length) return alert("Popunite sve podatke!");
@@ -83,42 +92,31 @@ export default function ProTipsterDashboard() {
       created_at: new Date().toISOString()
     }]);
     if (!error) {
-      setNaslov('');
-      setUlog('');
-      setAnaliza('');
-      setParovi([{ par: '', kvota: '', tip: '' }]);
-      setStatus('pending');
-      fetchListici(userId);
-      fetchSviListici();
+      setNaslov(''); setUlog(''); setAnaliza('');
+      setParovi([{ par: '', kvota: '', tip: '' }]); setStatus('pending');
+      fetchListici(userId); fetchSviListici();
     }
   };
 
-  const oznaciKao = async (betId, novoStanje) => {
-    const { error } = await supabase.from('bets').update({ status: novoStanje }).eq('id', betId).eq('user_id', userId);
-    if (!error) {
-      fetchListici(userId);
-      fetchSviListici();
-    }
+  const handleUpdateStatus = async (betId, newStatus) => {
+    await supabase.from('bets').update({ status: newStatus }).eq('id', betId);
+    await fetchListici(userId);
+    await fetchSviListici();
   };
 
   const renderListic = (l) => (
     <div key={l.id} className="border-b border-gray-600 py-2">
       <p><strong>{l.profiles?.nickname || 'Nepoznat'}:</strong> {l.title}</p>
-      <p>{l.pairs?.map(p => `${p.par} (${p.tip}) - ${p.kvota}`).join(', ')}</p>
+      <p>{l.pairs.map(p => `${p.par} (${p.tip}) - ${p.kvota}`).join(', ')}</p>
       <p>Kvota: {l.total_odds} - Ulog: {l.stake} - Status: {l.status}</p>
       {l.user_id === userId && l.status === 'pending' && (
-        <div className="flex gap-2 my-2">
-          <button onClick={() => oznaciKao(l.id, 'won')} className="bg-green-600 px-2 py-1 rounded">Označi kao dobitan</button>
-          <button onClick={() => oznaciKao(l.id, 'lost')} className="bg-red-600 px-2 py-1 rounded">Označi kao gubitan</button>
+        <div className="flex gap-2 mt-2">
+          <button onClick={() => handleUpdateStatus(l.id, 'won')} className="bg-green-600 px-2 py-1 rounded">Označi kao dobitan</button>
+          <button onClick={() => handleUpdateStatus(l.id, 'lost')} className="bg-red-600 px-2 py-1 rounded">Označi kao gubitan</button>
         </div>
       )}
     </div>
   );
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push('/');
-  };
 
   return (
     <div className="p-4 text-white bg-black min-h-screen">
@@ -126,9 +124,9 @@ export default function ProTipsterDashboard() {
         <h1 className="text-2xl font-bold">PRO Tipster Dashboard</h1>
         <button onClick={handleLogout} className="bg-red-600 px-4 py-2 rounded">Odjava</button>
       </div>
-      <p className="text-lg font-semibold mb-4">Tvoj saldo: €{saldo.toFixed(2)}</p>
 
       <h2 className="text-xl font-bold mb-2">Unesi novi listić</h2>
+      <p className="mb-2 text-green-400">Tvoj saldo: {saldo.toFixed(2)} €</p>
       <input value={naslov} onChange={e => setNaslov(e.target.value)} className="mb-1 p-1 w-full bg-gray-800" placeholder="Naslov" />
       <input value={ulog} onChange={e => setUlog(e.target.value)} className="mb-1 p-1 w-full bg-gray-800" placeholder="Ulog (€)" />
       {parovi.map((p, i) => (
