@@ -9,6 +9,7 @@ const AdminDashboard = () => {
   const router = useRouter();
   const [counts, setCounts] = useState({
     subscribers: 0,
+    activeSubscribers: 0,
     amateurTipsters: 0,
     proTipsters: 0,
     influencers: 0,
@@ -31,6 +32,7 @@ const AdminDashboard = () => {
       }
 
       const subscribers = profiles.filter(p => p.role === 'subscriber').length;
+      const activeSubscribers = profiles.filter(p => p.role === 'subscriber' && p.is_subscribed).length;
       const amateurTipsters = profiles.filter(p => p.role === 'amateur_tipster').length;
       const proTipsters = profiles.filter(p => p.role === 'pro_tipster').length;
       const influencers = profiles.filter(p => p.role === 'influencer').length;
@@ -63,6 +65,7 @@ const AdminDashboard = () => {
 
       setCounts({
         subscribers,
+        activeSubscribers,
         amateurTipsters,
         proTipsters,
         influencers,
@@ -137,10 +140,14 @@ const AdminDashboard = () => {
         <p>Loading...</p>
       ) : (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-5 gap-4">
             <Card className="bg-[#1f1f1f]">
-              <CardHeader><CardTitle>Pretplatnici</CardTitle></CardHeader>
+              <CardHeader><CardTitle>Pretplatnici (svi)</CardTitle></CardHeader>
               <CardContent><p>{counts.subscribers}</p></CardContent>
+            </Card>
+            <Card className="bg-[#1f1f1f]">
+              <CardHeader><CardTitle>Aktivni pretplatnici</CardTitle></CardHeader>
+              <CardContent><p>{counts.activeSubscribers}</p></CardContent>
             </Card>
             <Card className="bg-[#1f1f1f]">
               <CardHeader><CardTitle>Amaterski tipsteri</CardTitle></CardHeader>
