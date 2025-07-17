@@ -12,7 +12,6 @@ export default function AmateurTipsterDashboard() {
   const [ulog, setUlog] = useState('');
   const [naslov, setNaslov] = useState('');
   const [analiza, setAnaliza] = useState('');
-  const [status, setStatus] = useState('pending');
   const [mojiListici, setMojiListici] = useState([]);
   const [sviListici, setSviListici] = useState([]);
   const [proListici, setProListici] = useState([]);
@@ -131,14 +130,14 @@ export default function AmateurTipsterDashboard() {
       stake: parseFloat(ulog),
       total_odds: kvota,
       analysis: analiza,
-      status,
+      status: 'pending',
       role: 'amateur_tipster',
       pairs: parovi,
       created_at: new Date().toISOString()
     }]);
     if (!error) {
       setNaslov(''); setUlog(''); setAnaliza('');
-      setParovi([{ par: '', kvota: '', tip: '' }]); setStatus('pending');
+      setParovi([{ par: '', kvota: '', tip: '' }]);
       fetchListici(userId); fetchSviListici();
     }
   };
