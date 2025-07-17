@@ -1,7 +1,5 @@
-// File: pages/dashboard/pro-tipster-dashboard.jsx
-
 import { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabaseClient';
+import { supabase } from '../../lib/customSupabaseClient'; // ISPRAVNI IMPORT
 import { useRouter } from 'next/router';
 import { v4 as uuidv4 } from 'uuid';
 
