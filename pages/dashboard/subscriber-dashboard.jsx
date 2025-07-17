@@ -5,6 +5,7 @@ import { useRouter } from 'next/router';
 const SubscriberDashboard = () => {
   const router = useRouter();
   const [user, setUser] = useState(null);
+  const [nickname, setNickname] = useState('');
   const [bets, setBets] = useState([]);
   const [hasSubscription, setHasSubscription] = useState(false);
   const [likes, setLikes] = useState({});
@@ -25,12 +26,13 @@ const SubscriberDashboard = () => {
       if (!user) return;
       setUser(user);
 
-      const { data: profile } = await supabase
+      const { data: profileData } = await supabase
         .from('profiles')
-        .select('is_subscribed')
+        .select('is_subscribed, nickname')
         .eq('id', user.id)
         .single();
-      setHasSubscription(profile?.is_subscribed === true);
+      setHasSubscription(profileData?.is_subscribed === true);
+      setNickname(profileData?.nickname || '');
 
       const { data: betsData } = await supabase
         .from('bets')
@@ -41,9 +43,8 @@ const SubscriberDashboard = () => {
       const { data: likesData } = await supabase.from('likes').select('*');
       const likeMap = {};
       likesData?.forEach((like) => {
-        if (like.user_id === user.id) {
-          likeMap[like.bet_id] = true;
-        }
+        if (!likeMap[like.bet_id]) likeMap[like.bet_id] = [];
+        likeMap[like.bet_id].push(like.user_id);
       });
       setLikes(likeMap);
 
@@ -85,18 +86,28 @@ const SubscriberDashboard = () => {
 
   const handleLike = async (betId) => {
     if (!user) return;
-    if (likes[betId]) {
+    const alreadyLiked = likes[betId]?.includes(user.id);
+    if (alreadyLiked) {
       await supabase.from('likes').delete().eq('user_id', user.id).eq('bet_id', betId);
+      setLikes(prev => ({
+        ...prev,
+        [betId]: prev[betId].filter(id => id !== user.id)
+      }));
     } else {
       await supabase.from('likes').insert({ user_id: user.id, bet_id: betId });
+      setLikes(prev => ({
+        ...prev,
+        [betId]: [...(prev[betId] || []), user.id]
+      }));
     }
-    setLikes((prev) => ({ ...prev, [betId]: !prev[betId] }));
   };
 
   const handleCommentSubmit = async (betId) => {
     const text = newComments[betId]?.trim();
     if (!text) return;
-    const { error } = await supabase.from('comments').insert({ user_id: user.id, bet_id: betId, content: text });
+    const { error } = await supabase
+      .from('comments')
+      .insert({ user_id: user.id, bet_id: betId, content: text, nickname });
     if (!error) {
       const { data: updated } = await supabase
         .from('comments')
@@ -128,11 +139,11 @@ const SubscriberDashboard = () => {
       <p className="text-sm text-gray-400">{new Date(bet.created_at).toLocaleString()}</p>
       <p className="text-lg font-bold">{bet.title}</p>
       <p className="mt-1">Autor: <span className="text-blue-400">{bet.profiles?.nickname || 'Nepoznat'}</span></p>
-      <p className="mt-1">Analiza: {bet.analysis}</p>
+      <p className="mt-1 italic text-gray-300">Analiza: {bet.analysis}</p>
       <p className="mt-1">Ulog: €{bet.stake} | Kvota: {bet.total_odds}</p>
       <p className="mt-1 font-semibold">Status: {bet.status}</p>
       <button onClick={() => handleLike(bet.id)} className="text-blue-400 text-sm mt-2">
-        {likes[bet.id] ? '❤️ Sviđa mi se' : '🤍 Like'}
+        {likes[bet.id]?.includes(user.id) ? '❤️ Makni lajk' : '🤍 Lajkaj'} ({likes[bet.id]?.length || 0})
       </button>
       <div className="mt-3">
         <input
@@ -146,7 +157,7 @@ const SubscriberDashboard = () => {
         <div className="mt-2 space-y-1">
           {(comments[bet.id] || []).map((c) => (
             <div key={c.id} className="text-sm text-gray-300 flex justify-between items-center">
-              <p><strong>{c.profiles?.nickname || 'Korisnik'}:</strong> {c.content}</p>
+              <p><strong>{c.nickname || 'Korisnik'}:</strong> {c.content}</p>
               {c.user_id === user.id && (
                 <button onClick={() => handleCommentDelete(c.id, bet.id)} className="text-red-400 text-xs ml-2">Obriši</button>
               )}
