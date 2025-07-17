@@ -8,7 +8,7 @@ import { v4 as uuidv4 } from 'uuid';
 const AdminDashboard = () => {
   const router = useRouter();
   const [counts, setCounts] = useState({
-    totalSubscribers: 0,
+    subscribers: 0,
     activeSubscribers: 0,
     amateurTipsters: 0,
     proTipsters: 0,
@@ -16,22 +16,23 @@ const AdminDashboard = () => {
     referralStats: {},
     totalMonthlyCosts: 0,
     proPayments: [],
-    influencerPayments: [],
-    proRequests: []
+    influencerPayments: []
   });
   const [loading, setLoading] = useState(true);
+  const [proRequests, setProRequests] = useState([]);
 
   useEffect(() => {
-    const fetchCounts = async () => {
+    const fetchData = async () => {
       setLoading(true);
+      const { data: profiles, error } = await supabase.from('profiles').select('*');
+      const { data: requests } = await supabase.from('pro_requests').select('*');
 
-      const { data: profiles, error: profilesError } = await supabase.from('profiles').select('*');
-      if (profilesError) return console.error('Error fetching profiles:', profilesError);
+      if (error) {
+        console.error('Error fetching profiles:', error);
+        return;
+      }
 
-      const { data: requests, error: reqError } = await supabase.from('pro_requests').select('*');
-      if (reqError) return console.error('Error fetching pro requests:', reqError);
-
-      const totalSubscribers = profiles.filter(p => p.role === 'subscriber').length;
+      const subscribers = profiles.filter(p => p.role === 'subscriber').length;
       const activeSubscribers = profiles.filter(p => p.role === 'subscriber' && p.is_subscribed === true).length;
       const amateurTipsters = profiles.filter(p => p.role === 'amateur_tipster').length;
       const proTipsters = profiles.filter(p => p.role === 'pro_tipster').length;
@@ -55,7 +56,7 @@ const AdminDashboard = () => {
       const totalMonthlyCosts = [...proPayments, ...influencerPayments].reduce((sum, p) => sum + p.amount, 0);
 
       setCounts({
-        totalSubscribers,
+        subscribers,
         activeSubscribers,
         amateurTipsters,
         proTipsters,
@@ -63,15 +64,28 @@ const AdminDashboard = () => {
         referralStats,
         totalMonthlyCosts,
         proPayments,
-        influencerPayments,
-        proRequests: requests
+        influencerPayments
       });
 
+      setProRequests(requests || []);
       setLoading(false);
     };
 
-    fetchCounts();
+    fetchData();
   }, []);
+
+  const handleApprovePro = async (email) => {
+    await supabase.from('profiles').update({ role: 'pro_tipster' }).eq('email', email);
+    await supabase.from('pro_requests').delete().eq('email', email);
+    alert('Odobreno!');
+    location.reload();
+  };
+
+  const handleRejectPro = async (email) => {
+    await supabase.from('pro_requests').delete().eq('email', email);
+    alert('Odbijeno!');
+    location.reload();
+  };
 
   const handleAddTipster = async () => {
     const email = prompt('Unesi email tipstera:');
@@ -80,13 +94,11 @@ const AdminDashboard = () => {
     if (!nickname) return;
     const isPro = confirm('Je li tipster PRO? Klikni OK za PRO, Cancel za Amatera.');
     const role = isPro ? 'pro_tipster' : 'amateur_tipster';
-
     let monthly_payment = null;
     if (isPro) {
       const paymentInput = prompt('Unesi mjesečni iznos koji plaćaš PRO tipsteru (u €):');
       monthly_payment = parseFloat(paymentInput);
     }
-
     const { error } = await supabase.from('profiles').insert([{ email, role, nickname, monthly_payment }]);
     if (error) return alert('Greška prilikom dodavanja!');
     alert('Tipster dodan!');
@@ -99,7 +111,6 @@ const AdminDashboard = () => {
     const referral_code = 'ref_' + uuidv4().split('-')[0];
     const paymentInput = prompt('Unesi mjesečni iznos koji plaćaš influenceru (u €):');
     const monthly_payment = parseFloat(paymentInput);
-
     const { error } = await supabase.from('profiles').insert([{ email, role: 'influencer', referral_code, monthly_payment }]);
     if (error) return alert('Greška prilikom dodavanja!');
     alert(`Influencer dodan s referral kodom: ${referral_code}`);
@@ -108,25 +119,6 @@ const AdminDashboard = () => {
 
   const handleCreateChallenge = () => {
     router.push('/dashboard/admin/create-challenge');
-  };
-
-  const handleApprovePro = async (email) => {
-    const { error } = await supabase
-      .from('profiles')
-      .update({ role: 'pro_tipster' })
-      .eq('email', email);
-
-    if (!error) {
-      await supabase.from('pro_requests').delete().eq('email', email);
-      alert('Tipster promoviran u PRO.');
-      location.reload();
-    }
-  };
-
-  const handleRejectPro = async (email) => {
-    await supabase.from('pro_requests').delete().eq('email', email);
-    alert('Zahtjev odbijen.');
-    location.reload();
   };
 
   return (
@@ -138,26 +130,11 @@ const AdminDashboard = () => {
       ) : (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-5 gap-4">
-            <Card className="bg-[#1f1f1f]">
-              <CardHeader><CardTitle>Pretplatnici (ukupno)</CardTitle></CardHeader>
-              <CardContent><p>{counts.totalSubscribers}</p></CardContent>
-            </Card>
-            <Card className="bg-[#1f1f1f]">
-              <CardHeader><CardTitle>Aktivne pretplate</CardTitle></CardHeader>
-              <CardContent><p>{counts.activeSubscribers}</p></CardContent>
-            </Card>
-            <Card className="bg-[#1f1f1f]">
-              <CardHeader><CardTitle>Amaterski tipsteri</CardTitle></CardHeader>
-              <CardContent><p>{counts.amateurTipsters}</p></CardContent>
-            </Card>
-            <Card className="bg-[#1f1f1f]">
-              <CardHeader><CardTitle>PRO tipsteri</CardTitle></CardHeader>
-              <CardContent><p>{counts.proTipsters}</p></CardContent>
-            </Card>
-            <Card className="bg-[#1f1f1f]">
-              <CardHeader><CardTitle>Influenceri</CardTitle></CardHeader>
-              <CardContent><p>{counts.influencers}</p></CardContent>
-            </Card>
+            <Card className="bg-[#1f1f1f]"><CardHeader><CardTitle>Pretplatnici (ukupno)</CardTitle></CardHeader><CardContent><p>{counts.subscribers}</p></CardContent></Card>
+            <Card className="bg-[#1f1f1f]"><CardHeader><CardTitle>Aktivne pretplate</CardTitle></CardHeader><CardContent><p>{counts.activeSubscribers}</p></CardContent></Card>
+            <Card className="bg-[#1f1f1f]"><CardHeader><CardTitle>Amaterski tipsteri</CardTitle></CardHeader><CardContent><p>{counts.amateurTipsters}</p></CardContent></Card>
+            <Card className="bg-[#1f1f1f]"><CardHeader><CardTitle>PRO tipsteri</CardTitle></CardHeader><CardContent><p>{counts.proTipsters}</p></CardContent></Card>
+            <Card className="bg-[#1f1f1f]"><CardHeader><CardTitle>Influenceri</CardTitle></CardHeader><CardContent><p>{counts.influencers}</p></CardContent></Card>
           </div>
 
           <div className="pt-6">
@@ -192,17 +169,15 @@ const AdminDashboard = () => {
 
           <div className="pt-6">
             <h2 className="text-xl font-semibold mb-2">Zahtjevi za PRO status</h2>
-            {counts.proRequests.length === 0 ? (
+            {proRequests.length === 0 ? (
               <p>Nema novih zahtjeva.</p>
             ) : (
               <ul>
-                {counts.proRequests.map(req => (
-                  <li key={req.email} className="flex justify-between items-center my-1">
-                    {req.email}
-                    <div>
-                      <Button className="mr-2" onClick={() => handleApprovePro(req.email)}>Prihvati</Button>
-                      <Button variant="outline" onClick={() => handleRejectPro(req.email)}>Odbij</Button>
-                    </div>
+                {proRequests.map(r => (
+                  <li key={r.email} className="mb-2">
+                    {r.email}
+                    <Button className="ml-2 bg-green-600" onClick={() => handleApprovePro(r.email)}>✅ Odobri</Button>
+                    <Button className="ml-2 bg-red-600" onClick={() => handleRejectPro(r.email)}>❌ Odbij</Button>
                   </li>
                 ))}
               </ul>
