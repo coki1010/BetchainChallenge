@@ -4,7 +4,6 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { v4 as uuidv4 } from 'uuid';
-import { UserPlus, Megaphone, Trophy } from 'lucide-react';
 
 const AdminDashboard = () => {
   const router = useRouter();
@@ -22,25 +21,25 @@ const AdminDashboard = () => {
   });
   const [loading, setLoading] = useState(true);
 
-  const normalize = (str) => (str || '').toLowerCase();
-
   useEffect(() => {
     const fetchCounts = async () => {
       setLoading(true);
 
       const { data: profiles, error } = await supabase.from('profiles').select('*');
+      console.log("🚀 PROFILI:", profiles);
+
       if (error) {
         console.error('Error fetching profiles:', error);
         return;
       }
 
-      const subscribers = profiles.filter(p => normalize(p.role) === 'subscriber').length;
+      const subscribers = profiles.filter(p => p.role === 'subscriber').length;
       const activeSubscribers = profiles.filter(p =>
-        normalize(p.role) === 'subscriber' && (p.is_subscribed === true || p.is_subscribed === 'TRUE')
+        p.role === 'subscriber' && (p.is_subscribed === true || p.is_subscribed === 'TRUE')
       ).length;
-      const amateurTipsters = profiles.filter(p => normalize(p.role) === 'amateur_tipster').length;
-      const proTipsters = profiles.filter(p => normalize(p.role) === 'pro_tipster').length;
-      const influencers = profiles.filter(p => normalize(p.role) === 'influencer').length;
+      const amateurTipsters = profiles.filter(p => p.role === 'amateur_tipster').length;
+      const proTipsters = profiles.filter(p => p.role === 'pro_tipster').length;
+      const influencers = profiles.filter(p => p.role === 'influencer').length;
 
       const referralStats = profiles
         .filter(p => p.referral_code)
@@ -50,11 +49,11 @@ const AdminDashboard = () => {
         }, {});
 
       const proPayments = profiles
-        .filter(p => normalize(p.role) === 'pro_tipster')
+        .filter(p => p.role === 'pro_tipster')
         .map(p => ({ email: p.email, amount: p.monthly_payment || 0 }));
 
       const influencerPayments = profiles
-        .filter(p => normalize(p.role) === 'influencer')
+        .filter(p => p.role === 'influencer')
         .map(p => ({ email: p.email, amount: p.monthly_payment || 0 }));
 
       const totalMonthlyCosts = [...proPayments, ...influencerPayments].reduce((sum, p) => sum + p.amount, 0);
@@ -116,7 +115,7 @@ const AdminDashboard = () => {
 
     const { error } = await supabase.from('profiles').insert([{ email, role: 'influencer', referral_code, monthly_payment }]);
     if (error) return alert('Greška prilikom dodavanja!');
-    alert(`Influencer dodan s referral kodom: ${referral_code}`);
+    alert(Influencer dodan s referral kodom: ${referral_code});
     location.reload();
   };
 
@@ -138,98 +137,95 @@ const AdminDashboard = () => {
   };
 
   return (
-    <div className="p-6 space-y-6 bg-[#0f0f0f] text-white min-h-screen">
-      <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+    <div className="p-6 space-y-4 bg-[#0f0f0f] text-white min-h-screen">
+      <h1 className="text-2xl font-bold">Admin Dashboard</h1>
+
+      {/* DEBUG PRIKAZ COUNT OBJEKTA */}
+      <pre className="text-white text-sm bg-black p-2 rounded overflow-x-auto">
+        {JSON.stringify(counts, null, 2)}
+      </pre>
 
       {loading ? (
-        <p>Učitavanje...</p>
+        <p>Loading...</p>
       ) : (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
-            {[
-              { label: 'Pretplatnici (svi)', value: counts.subscribers },
-              { label: 'Aktivni pretplatnici', value: counts.activeSubscribers },
-              { label: 'Amaterski tipsteri', value: counts.amateurTipsters },
-              { label: 'PRO tipsteri', value: counts.proTipsters },
-              { label: 'Influenceri', value: counts.influencers }
-            ].map((item, index) => (
-              <Card key={index} className="bg-[#1f1f1f]">
-                <CardHeader>
-                  <CardTitle className="text-white text-sm">{item.label}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-white text-2xl">{item.value}</p>
-                </CardContent>
-              </Card>
+          <div className="grid grid-cols-1 sm:grid-cols-5 gap-4">
+            <Card className="bg-[#1f1f1f] text-white">
+              <CardHeader><CardTitle className="text-white">Pretplatnici (svi)</CardTitle></CardHeader>
+              <CardContent><p className="text-white text-xl">{counts.subscribers}</p></CardContent>
+            </Card>
+            <Card className="bg-[#1f1f1f] text-white">
+              <CardHeader><CardTitle className="text-white">Aktivni pretplatnici</CardTitle></CardHeader>
+              <CardContent><p className="text-white text-xl">{counts.activeSubscribers}</p></CardContent>
+            </Card>
+            <Card className="bg-[#1f1f1f] text-white">
+              <CardHeader><CardTitle className="text-white">Amaterski tipsteri</CardTitle></CardHeader>
+              <CardContent><p className="text-white text-xl">{counts.amateurTipsters}</p></CardContent>
+            </Card>
+            <Card className="bg-[#1f1f1f] text-white">
+              <CardHeader><CardTitle className="text-white">PRO tipsteri</CardTitle></CardHeader>
+              <CardContent><p className="text-white text-xl">{counts.proTipsters}</p></CardContent>
+            </Card>
+            <Card className="bg-[#1f1f1f] text-white">
+              <CardHeader><CardTitle className="text-white">Influenceri</CardTitle></CardHeader>
+              <CardContent><p className="text-white text-xl">{counts.influencers}</p></CardContent>
+            </Card>
+          </div>
+
+          <div className="pt-6">
+            <h2 className="text-xl font-semibold mb-2">Referral statistika</h2>
+            {Object.entries(counts.referralStats).map(([code, total]) => (
+              <p key={code}>{code}: {total} pretplatnik(a)</p>
             ))}
           </div>
 
-          <Card className="bg-[#1f1f1f]">
-            <CardHeader><CardTitle className="text-white">Mjesečni trošak</CardTitle></CardHeader>
-            <CardContent>
-              <p className="mb-2">Ukupno: {counts.totalMonthlyCosts} € / mjesec</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <h3 className="font-semibold text-white">PRO Tipsteri:</h3>
-                  <ul className="text-sm">
-                    {counts.proPayments.map(p => (
-                      <li key={p.email}>{p.email} – {p.amount} €</li>
-                    ))}
-                  </ul>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-white">Influenceri:</h3>
-                  <ul className="text-sm">
-                    {counts.influencerPayments.map(p => (
-                      <li key={p.email}>{p.email} – {p.amount} €</li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-[#1f1f1f]">
-            <CardHeader><CardTitle className="text-white">Referral statistika</CardTitle></CardHeader>
-            <CardContent>
-              {Object.keys(counts.referralStats).length === 0 ? (
-                <p>Nema referral podataka.</p>
-              ) : (
+          <div className="pt-6">
+            <h2 className="text-xl font-semibold mb-2">Mjesečni trošak</h2>
+            <p className="mb-2">Ukupno: {counts.totalMonthlyCosts} € / mjesec</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <h3 className="font-semibold">PRO Tipsteri:</h3>
                 <ul>
-                  {Object.entries(counts.referralStats).map(([code, total]) => (
-                    <li key={code}>{code}: {total} pretplatnik(a)</li>
+                  {counts.proPayments.map(p => (
+                    <li key={p.email}>{p.email} – {p.amount} €</li>
                   ))}
                 </ul>
-              )}
-            </CardContent>
-          </Card>
+              </div>
+              <div>
+                <h3 className="font-semibold">Influenceri:</h3>
+                <ul>
+                  {counts.influencerPayments.map(p => (
+                    <li key={p.email}>{p.email} – {p.amount} €</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
 
-          <Card className="bg-[#1f1f1f]">
-            <CardHeader><CardTitle className="text-white">Zahtjevi za PRO status</CardTitle></CardHeader>
-            <CardContent>
-              {counts.proRequests.length === 0 ? (
-                <p>Nema zahtjeva za PRO status.</p>
-              ) : (
-                counts.proRequests.map(req => (
-                  <div key={req.id} className="mb-4">
-                    <p><strong>{req.profiles?.nickname}</strong> ({req.profiles?.email})</p>
-                    <div className="mt-2 flex gap-2">
-                      <Button className="bg-green-600" onClick={() => handleApproveRequest(req.user_id)}>Prihvati</Button>
-                      <Button className="bg-red-600" onClick={() => handleRejectRequest(req.user_id)}>Odbij</Button>
-                    </div>
+          <div className="pt-6">
+            <h2 className="text-xl font-semibold mb-2">Zahtjevi za PRO status</h2>
+            {counts?.proRequests?.length > 0 ? (
+              counts.proRequests.map(req => (
+                <div key={req.id} className="bg-[#1a1a1a] p-4 rounded mb-2">
+                  <p><strong>{req.profiles?.nickname || 'Nepoznat'}</strong> ({req.profiles?.email}) traži PRO status.</p>
+                  <div className="mt-2 flex gap-2">
+                    <Button onClick={() => handleApproveRequest(req.user_id)} className="bg-green-600">Prihvati</Button>
+                    <Button onClick={() => handleRejectRequest(req.user_id)} className="bg-red-600">Odbij</Button>
                   </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
-
-          <div className="flex flex-wrap gap-4 pt-4">
-            <Button onClick={handleAddTipster}><UserPlus className="mr-2 h-4 w-4" />Dodaj tipstera</Button>
-            <Button onClick={handleAddInfluencer}><Megaphone className="mr-2 h-4 w-4" />Dodaj influencera</Button>
-            <Button onClick={handleCreateChallenge}><Trophy className="mr-2 h-4 w-4" />Kreiraj izazov</Button>
+                </div>
+              ))
+            ) : (
+              <p>Nema novih zahtjeva.</p>
+            )}
           </div>
         </>
       )}
+
+      <div className="pt-4">
+        <Button onClick={handleAddTipster}>Dodaj novog tipstera</Button>
+        <Button className="ml-2" onClick={handleAddInfluencer}>Dodaj influencera</Button>
+        <Button className="ml-2" onClick={handleCreateChallenge}>Kreiraj izazov</Button>
+      </div>
     </div>
   );
 };
