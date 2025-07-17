@@ -11,7 +11,6 @@ export default function ProTipsterDashboard() {
   const [ulog, setUlog] = useState('');
   const [naslov, setNaslov] = useState('');
   const [analiza, setAnaliza] = useState('');
-  const [status, setStatus] = useState('pending');
   const [proListici, setProListici] = useState([]);
   const [amateurListici, setAmateurListici] = useState([]);
   const [comments, setComments] = useState({});
@@ -19,7 +18,7 @@ export default function ProTipsterDashboard() {
   const [newComments, setNewComments] = useState({});
   const [expandedPro, setExpandedPro] = useState(true);
   const [expandedAmateur, setExpandedAmateur] = useState(true);
-  const [mojiListici, setMojiListici] = useState([]);
+  const [expandedComments, setExpandedComments] = useState({});
   const router = useRouter();
 
   useEffect(() => {
@@ -40,27 +39,24 @@ export default function ProTipsterDashboard() {
   const fetchListici = async (id) => {
     const { data } = await supabase.from('bets').select('*').eq('user_id', id);
     if (data) {
-      setMojiListici(data);
       let saldoTemp = 10000;
       data.forEach(bet => {
-        if (bet.status === 'won') {
-          saldoTemp += bet.stake * bet.total_odds;
-        } else if (bet.status === 'lost') {
-          saldoTemp -= bet.stake;
-        }
+        if (bet.status === 'won') saldoTemp += bet.stake * bet.total_odds;
+        else if (bet.status === 'lose') saldoTemp -= bet.stake;
       });
       setSaldo(saldoTemp);
     }
   };
 
   const fetchSviListici = async () => {
-    const { data: pro } = await supabase.from('bets').select('*, profiles(nickname)').eq('role', 'pro_tipster');
-    const { data: amateur } = await supabase.from('bets').select('*, profiles(nickname)').eq('role', 'amateur_tipster');
+    const { data: pro } = await supabase.from('bets').select('*, profiles(nickname)').eq('role', 'pro_tipster').order('created_at', { ascending: false });
+    const { data: amateur } = await supabase.from('bets').select('*, profiles(nickname)').eq('role', 'amateur_tipster').order('created_at', { ascending: false });
     setProListici(pro || []);
     setAmateurListici(amateur || []);
 
     const allBets = [...(pro || []), ...(amateur || [])];
     const betIds = allBets.map(b => b.id);
+
     const { data: komentarData } = await supabase.from('comments').select('*').in('bet_id', betIds);
     const { data: likeData } = await supabase.from('likes').select('*').in('bet_id', betIds);
 
@@ -113,7 +109,6 @@ export default function ProTipsterDashboard() {
     await fetchListici(userId);
     await fetchSviListici();
   };
-
   const handleCommentChange = (betId, content) => {
     setNewComments(prev => ({ ...prev, [betId]: content }));
   };
@@ -141,13 +136,19 @@ export default function ProTipsterDashboard() {
 
   const handleLike = async (betId) => {
     const alreadyLiked = likes[betId]?.some(l => l.user_id === userId);
-    if (alreadyLiked) return;
-    await supabase.from('likes').insert({
-      id: uuidv4(),
-      bet_id: betId,
-      user_id: userId,
-      created_at: new Date(),
-    });
+    if (alreadyLiked) {
+      const likeToRemove = likes[betId].find(l => l.user_id === userId);
+      if (likeToRemove) {
+        await supabase.from('likes').delete().eq('id', likeToRemove.id);
+      }
+    } else {
+      await supabase.from('likes').insert({
+        id: uuidv4(),
+        bet_id: betId,
+        user_id: userId,
+        created_at: new Date(),
+      });
+    }
     await fetchSviListici();
   };
 
@@ -157,30 +158,39 @@ export default function ProTipsterDashboard() {
     await fetchListici(userId);
   };
 
-  const renderComments = (betId) => {
-    const betComments = comments[betId] || [];
-    return (
-      <div className="ml-4 mt-2">
-        {betComments.map(c => (
-          <div key={c.id} className="flex justify-between text-sm border-b border-gray-600 py-1">
-            <span><strong>{c.nickname}</strong>: {c.content}</span>
-            {c.user_id === userId && (
-              <button onClick={() => handleDeleteComment(c.id)} className="text-red-400 text-xs ml-2">Obriši</button>
-            )}
-          </div>
-        ))}
-        <div className="flex gap-2 mt-2">
-          <input className="p-1 bg-gray-800 text-white w-full"
-            placeholder="Komentar..." value={newComments[betId] || ''}
-            onChange={(e) => handleCommentChange(betId, e.target.value)} />
-          <button onClick={() => handleAddComment(betId)} className="bg-blue-600 px-2 rounded">Komentiraj</button>
-        </div>
-      </div>
-    );
-  };
-
   const ukupnaKvota = () => {
     return parovi.reduce((acc, p) => acc * parseFloat(p.kvota || 1), 1).toFixed(2);
+  };
+
+  const renderComments = (betId) => {
+    const isOpen = expandedComments[betId];
+    const toggle = () => setExpandedComments(prev => ({ ...prev, [betId]: !prev[betId] }));
+
+    return (
+      <div className="mt-2 ml-2">
+        <button onClick={toggle} className="text-blue-400 text-sm underline">
+          {isOpen ? 'Sakrij komentare' : 'Prikaži komentare'}
+        </button>
+        {isOpen && (
+          <div className="mt-2">
+            {(comments[betId] || []).map(c => (
+              <div key={c.id} className="text-sm border-b border-gray-600 py-1 flex justify-between">
+                <span><strong>{c.nickname}</strong>: {c.content}</span>
+                {c.user_id === userId && (
+                  <button onClick={() => handleDeleteComment(c.id)} className="text-red-400 text-xs ml-2">Obriši</button>
+                )}
+              </div>
+            ))}
+            <div className="flex gap-2 mt-2">
+              <input className="p-1 bg-gray-800 text-white w-full"
+                placeholder="Komentar..." value={newComments[betId] || ''}
+                onChange={(e) => handleCommentChange(betId, e.target.value)} />
+              <button onClick={() => handleAddComment(betId)} className="bg-blue-600 px-2 rounded">Komentiraj</button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
   };
 
   const renderListic = (l) => (
@@ -191,11 +201,13 @@ export default function ProTipsterDashboard() {
       {l.user_id === userId && l.status === 'pending' && (
         <div className="flex gap-2 my-2">
           <button onClick={() => handleChangeStatus(l.id, 'won')} className="bg-green-600 px-2 rounded">Označi kao dobitan</button>
-          <button onClick={() => handleChangeStatus(l.id, 'lost')} className="bg-red-600 px-2 rounded">Označi kao gubitan</button>
+          <button onClick={() => handleChangeStatus(l.id, 'lose')} className="bg-red-600 px-2 rounded">Označi kao gubitan</button>
         </div>
       )}
       <p>👍 {likes[l.id]?.length || 0}</p>
-      <button onClick={() => handleLike(l.id)} className="text-green-400 text-sm">Lajkaj</button>
+      <button onClick={() => handleLike(l.id)} className="text-green-400 text-sm">
+        {likes[l.id]?.some(lk => lk.user_id === userId) ? 'Makni lajk' : 'Lajkaj'}
+      </button>
       {renderComments(l.id)}
     </div>
   );
