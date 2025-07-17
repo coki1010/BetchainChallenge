@@ -144,29 +144,28 @@ const AdminDashboard = () => {
         <p>Loading...</p>
       ) : (
         <>
-        <div className="grid grid-cols-1 sm:grid-cols-5 gap-4">
-<Card className="bg-white text-blue-900">
-  <CardHeader><CardTitle className="text-blue-900">Pretplatnici (svi)</CardTitle></CardHeader>
-  <CardContent><p className="text-xl">{counts.subscribers}</p></CardContent>
-</Card>
-<Card className="bg-white text-blue-900">
-  <CardHeader><CardTitle className="text-blue-900">Aktivni pretplatnici</CardTitle></CardHeader>
-  <CardContent><p className="text-xl">{counts.activeSubscribers}</p></CardContent>
-</Card>
-<Card className="bg-white text-blue-900">
-  <CardHeader><CardTitle className="text-blue-900">Amaterski tipsteri</CardTitle></CardHeader>
-  <CardContent><p className="text-xl">{counts.amateurTipsters}</p></CardContent>
-</Card>
-<Card className="bg-white text-blue-900">
-  <CardHeader><CardTitle className="text-blue-900">PRO tipsteri</CardTitle></CardHeader>
-  <CardContent><p className="text-xl">{counts.proTipsters}</p></CardContent>
-</Card>
-<Card className="bg-white text-blue-900">
-  <CardHeader><CardTitle className="text-blue-900">Influenceri</CardTitle></CardHeader>
-  <CardContent><p className="text-xl">{counts.influencers}</p></CardContent>
-</Card>
-</div>
-
+          <div className="grid grid-cols-1 sm:grid-cols-5 gap-4">
+            <Card className="bg-[#1a1a1a] text-white">
+              <CardHeader><CardTitle>Pretplatnici (svi)</CardTitle></CardHeader>
+              <CardContent><p className="text-xl">{counts.subscribers}</p></CardContent>
+            </Card>
+            <Card className="bg-[#1a1a1a] text-white">
+              <CardHeader><CardTitle>Aktivni pretplatnici</CardTitle></CardHeader>
+              <CardContent><p className="text-xl">{counts.activeSubscribers}</p></CardContent>
+            </Card>
+            <Card className="bg-[#1a1a1a] text-white">
+              <CardHeader><CardTitle>Amaterski tipsteri</CardTitle></CardHeader>
+              <CardContent><p className="text-xl">{counts.amateurTipsters}</p></CardContent>
+            </Card>
+            <Card className="bg-[#1a1a1a] text-white">
+              <CardHeader><CardTitle>PRO tipsteri</CardTitle></CardHeader>
+              <CardContent><p className="text-xl">{counts.proTipsters}</p></CardContent>
+            </Card>
+            <Card className="bg-[#1a1a1a] text-white">
+              <CardHeader><CardTitle>Influenceri</CardTitle></CardHeader>
+              <CardContent><p className="text-xl">{counts.influencers}</p></CardContent>
+            </Card>
+          </div>
 
           <div className="pt-6">
             <h2 className="text-xl font-semibold mb-2">Referral statistika</h2>
