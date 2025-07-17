@@ -32,12 +32,9 @@ const AdminDashboard = () => {
       }
 
       const subscribers = profiles.filter(p => p.role === 'subscriber').length;
-
-      // === OVDJE DODANA PODRŠKA ZA "TRUE" KAO STRING ===
       const activeSubscribers = profiles.filter(p =>
         p.role === 'subscriber' && (p.is_subscribed === true || p.is_subscribed === 'TRUE')
       ).length;
-
       const amateurTipsters = profiles.filter(p => p.role === 'amateur_tipster').length;
       const proTipsters = profiles.filter(p => p.role === 'pro_tipster').length;
       const influencers = profiles.filter(p => p.role === 'influencer').length;
@@ -146,25 +143,25 @@ const AdminDashboard = () => {
       ) : (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-5 gap-4">
-            <Card className="bg-[#1f1f1f]">
-              <CardHeader><CardTitle>Pretplatnici (svi)</CardTitle></CardHeader>
-              <CardContent><p>{counts.subscribers}</p></CardContent>
+            <Card className="bg-[#1f1f1f] text-white">
+              <CardHeader><CardTitle className="text-white">Pretplatnici (svi)</CardTitle></CardHeader>
+              <CardContent><p className="text-white text-xl">{counts.subscribers}</p></CardContent>
             </Card>
-            <Card className="bg-[#1f1f1f]">
-              <CardHeader><CardTitle>Aktivni pretplatnici</CardTitle></CardHeader>
-              <CardContent><p>{counts.activeSubscribers}</p></CardContent>
+            <Card className="bg-[#1f1f1f] text-white">
+              <CardHeader><CardTitle className="text-white">Aktivni pretplatnici</CardTitle></CardHeader>
+              <CardContent><p className="text-white text-xl">{counts.activeSubscribers}</p></CardContent>
             </Card>
-            <Card className="bg-[#1f1f1f]">
-              <CardHeader><CardTitle>Amaterski tipsteri</CardTitle></CardHeader>
-              <CardContent><p>{counts.amateurTipsters}</p></CardContent>
+            <Card className="bg-[#1f1f1f] text-white">
+              <CardHeader><CardTitle className="text-white">Amaterski tipsteri</CardTitle></CardHeader>
+              <CardContent><p className="text-white text-xl">{counts.amateurTipsters}</p></CardContent>
             </Card>
-            <Card className="bg-[#1f1f1f]">
-              <CardHeader><CardTitle>PRO tipsteri</CardTitle></CardHeader>
-              <CardContent><p>{counts.proTipsters}</p></CardContent>
+            <Card className="bg-[#1f1f1f] text-white">
+              <CardHeader><CardTitle className="text-white">PRO tipsteri</CardTitle></CardHeader>
+              <CardContent><p className="text-white text-xl">{counts.proTipsters}</p></CardContent>
             </Card>
-            <Card className="bg-[#1f1f1f]">
-              <CardHeader><CardTitle>Influenceri</CardTitle></CardHeader>
-              <CardContent><p>{counts.influencers}</p></CardContent>
+            <Card className="bg-[#1f1f1f] text-white">
+              <CardHeader><CardTitle className="text-white">Influenceri</CardTitle></CardHeader>
+              <CardContent><p className="text-white text-xl">{counts.influencers}</p></CardContent>
             </Card>
           </div>
 
