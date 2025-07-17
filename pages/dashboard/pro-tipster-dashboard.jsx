@@ -217,7 +217,7 @@ export default function ProTipsterDashboard() {
       <p>Kvota: {l.total_odds} - Ulog: {l.stake} - Status: {l.status}</p>
       {l.user_id === userId && l.status === 'pending' && (
         <div className="flex gap-2 my-2">
-          <button onClick={() => handleChangeStatus(l.id, 'won')} className="bg-green-600 px-2 rounded">Označi kao dobitan</button>
+          <button onClick={() => handleChangeStatus(l.id, 'win')} className="bg-green-600 px-2 rounded">Označi kao dobitan</button>
           <button onClick={() => handleChangeStatus(l.id, 'lose')} className="bg-red-600 px-2 rounded">Označi kao gubitan</button>
         </div>
       )}
