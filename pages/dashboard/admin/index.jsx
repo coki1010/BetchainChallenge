@@ -26,6 +26,7 @@ const AdminDashboard = () => {
       setLoading(true);
 
       const { data: profiles, error } = await supabase.from('profiles').select('*');
+      console.log("🚀 PROFILI:", profiles);
 
       if (error) {
         console.error('Error fetching profiles:', error);
@@ -136,94 +137,97 @@ const AdminDashboard = () => {
   };
 
   return (
-    <div className="p-6 space-y-6 bg-[#0f0f0f] text-white min-h-screen">
-      <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+    <div className="p-6 space-y-4 bg-[#0f0f0f] text-white min-h-screen">
+      <h1 className="text-2xl font-bold">Admin Dashboard</h1>
+
+      {/* DEBUG PRIKAZ COUNT OBJEKTA */}
+      <pre className="text-white text-sm bg-black p-2 rounded overflow-x-auto">
+        {JSON.stringify(counts, null, 2)}
+      </pre>
 
       {loading ? (
-        <p className="text-lg">Učitavanje...</p>
+        <p>Loading...</p>
       ) : (
         <>
-          {/* KARTICE */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-            <StatCard title="Pretplatnici (svi)" value={counts.subscribers} />
-            <StatCard title="Aktivni pretplatnici" value={counts.activeSubscribers} />
-            <StatCard title="Amaterski tipsteri" value={counts.amateurTipsters} />
-            <StatCard title="PRO tipsteri" value={counts.proTipsters} />
-            <StatCard title="Influenceri" value={counts.influencers} />
+          <div className="grid grid-cols-1 sm:grid-cols-5 gap-4">
+            <Card className="bg-[#1f1f1f] text-white">
+              <CardHeader><CardTitle className="text-white">Pretplatnici (svi)</CardTitle></CardHeader>
+              <CardContent><p className="text-white text-xl">{counts.subscribers}</p></CardContent>
+            </Card>
+            <Card className="bg-[#1f1f1f] text-white">
+              <CardHeader><CardTitle className="text-white">Aktivni pretplatnici</CardTitle></CardHeader>
+              <CardContent><p className="text-white text-xl">{counts.activeSubscribers}</p></CardContent>
+            </Card>
+            <Card className="bg-[#1f1f1f] text-white">
+              <CardHeader><CardTitle className="text-white">Amaterski tipsteri</CardTitle></CardHeader>
+              <CardContent><p className="text-white text-xl">{counts.amateurTipsters}</p></CardContent>
+            </Card>
+            <Card className="bg-[#1f1f1f] text-white">
+              <CardHeader><CardTitle className="text-white">PRO tipsteri</CardTitle></CardHeader>
+              <CardContent><p className="text-white text-xl">{counts.proTipsters}</p></CardContent>
+            </Card>
+            <Card className="bg-[#1f1f1f] text-white">
+              <CardHeader><CardTitle className="text-white">Influenceri</CardTitle></CardHeader>
+              <CardContent><p className="text-white text-xl">{counts.influencers}</p></CardContent>
+            </Card>
           </div>
 
-          {/* MJ. TROŠKOVI */}
-          <section className="bg-[#1a1a1a] p-4 rounded">
+          <div className="pt-6">
+            <h2 className="text-xl font-semibold mb-2">Referral statistika</h2>
+            {Object.entries(counts.referralStats).map(([code, total]) => (
+              <p key={code}>{code}: {total} pretplatnik(a)</p>
+            ))}
+          </div>
+
+          <div className="pt-6">
             <h2 className="text-xl font-semibold mb-2">Mjesečni trošak</h2>
-            <p className="mb-4 text-lg">Ukupno: <strong>{counts.totalMonthlyCosts} €</strong> / mjesec</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+            <p className="mb-2">Ukupno: {counts.totalMonthlyCosts} € / mjesec</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <h3 className="font-semibold text-white mb-1">PRO Tipsteri</h3>
-                {counts.proPayments.map(p => (
-                  <p key={p.email}>{p.email} – {p.amount} €</p>
-                ))}
+                <h3 className="font-semibold">PRO Tipsteri:</h3>
+                <ul>
+                  {counts.proPayments.map(p => (
+                    <li key={p.email}>{p.email} – {p.amount} €</li>
+                  ))}
+                </ul>
               </div>
               <div>
-                <h3 className="font-semibold text-white mb-1">Influenceri</h3>
-                {counts.influencerPayments.map(p => (
-                  <p key={p.email}>{p.email} – {p.amount} €</p>
-                ))}
+                <h3 className="font-semibold">Influenceri:</h3>
+                <ul>
+                  {counts.influencerPayments.map(p => (
+                    <li key={p.email}>{p.email} – {p.amount} €</li>
+                  ))}
+                </ul>
               </div>
             </div>
-          </section>
+          </div>
 
-          {/* REFERRAL */}
-          <section className="bg-[#1a1a1a] p-4 rounded">
-            <h2 className="text-xl font-semibold mb-2">Referral statistika</h2>
-            {Object.entries(counts.referralStats).length === 0 ? (
-              <p>Nema referral podataka.</p>
-            ) : (
-              Object.entries(counts.referralStats).map(([code, total]) => (
-                <p key={code}>{code}: {total} pretplatnik(a)</p>
-              ))
-            )}
-          </section>
-
-          {/* PRO REQUESTS */}
-          <section className="bg-[#1a1a1a] p-4 rounded">
+          <div className="pt-6">
             <h2 className="text-xl font-semibold mb-2">Zahtjevi za PRO status</h2>
             {counts?.proRequests?.length > 0 ? (
               counts.proRequests.map(req => (
-                <div key={req.id} className="bg-[#2b2b2b] p-4 rounded mb-2">
+                <div key={req.id} className="bg-[#1a1a1a] p-4 rounded mb-2">
                   <p><strong>{req.profiles?.nickname || 'Nepoznat'}</strong> ({req.profiles?.email}) traži PRO status.</p>
                   <div className="mt-2 flex gap-2">
-                    <Button onClick={() => handleApproveRequest(req.user_id)} className="bg-green-600 hover:bg-green-700">Prihvati</Button>
-                    <Button onClick={() => handleRejectRequest(req.user_id)} className="bg-red-600 hover:bg-red-700">Odbij</Button>
+                    <Button onClick={() => handleApproveRequest(req.user_id)} className="bg-green-600">Prihvati</Button>
+                    <Button onClick={() => handleRejectRequest(req.user_id)} className="bg-red-600">Odbij</Button>
                   </div>
                 </div>
               ))
             ) : (
-              <p>Nema zahtjeva za PRO status.</p>
+              <p>Nema novih zahtjeva.</p>
             )}
-          </section>
-
-          {/* GUMBI */}
-          <div className="flex flex-wrap gap-4 pt-4">
-            <Button onClick={handleAddTipster}>➕ Dodaj tipstera</Button>
-            <Button onClick={handleAddInfluencer}>➕ Dodaj influencera</Button>
-            <Button onClick={handleCreateChallenge}>🏆 Kreiraj izazov</Button>
           </div>
         </>
       )}
+
+      <div className="pt-4">
+        <Button onClick={handleAddTipster}>Dodaj novog tipstera</Button>
+        <Button className="ml-2" onClick={handleAddInfluencer}>Dodaj influencera</Button>
+        <Button className="ml-2" onClick={handleCreateChallenge}>Kreiraj izazov</Button>
+      </div>
     </div>
   );
 };
-
-// Komponenta za kartice
-const StatCard = ({ title, value }) => (
-  <Card className="bg-[#1f1f1f] text-white shadow-md">
-    <CardHeader>
-      <CardTitle className="text-base text-gray-300">{title}</CardTitle>
-    </CardHeader>
-    <CardContent>
-      <p className="text-2xl font-bold">{value}</p>
-    </CardContent>
-  </Card>
-);
 
 export default AdminDashboard;
