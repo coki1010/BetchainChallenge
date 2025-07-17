@@ -1,8 +1,12 @@
-import { useEffect, useState } from 'react';
-import { supabase } from '../../lib/supabaseClient';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
+import { supabase } from '@/lib/customSupabaseClient';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { v4 as uuidv4 } from 'uuid';
 
-export default function AdminDashboard() {
+const AdminDashboard = () => {
+  const router = useRouter();
   const [counts, setCounts] = useState({
     subscribers: 0,
     activeSubscribers: 0,
@@ -13,137 +17,213 @@ export default function AdminDashboard() {
     totalMonthlyCosts: 0,
     proPayments: [],
     influencerPayments: [],
-    proRequests: [],
+    proRequests: []
   });
-
-  const router = useRouter();
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const fetchCounts = async () => {
+      setLoading(true);
+
+      const { data: profiles, error } = await supabase.from('profiles').select('*');
+
+      if (error) {
+        console.error('Error fetching profiles:', error);
+        return;
+      }
+
+      const subscribers = profiles.filter(p => p.role === 'subscriber').length;
+      const activeSubscribers = profiles.filter(p =>
+        p.role === 'subscriber' && (p.is_subscribed === true || p.is_subscribed === 'TRUE')
+      ).length;
+      const amateurTipsters = profiles.filter(p => p.role === 'amateur_tipster').length;
+      const proTipsters = profiles.filter(p => p.role === 'pro_tipster').length;
+      const influencers = profiles.filter(p => p.role === 'influencer').length;
+
+      const referralStats = profiles
+        .filter(p => p.referral_code)
+        .reduce((acc, curr) => {
+          acc[curr.referral_code] = (acc[curr.referral_code] || 0) + 1;
+          return acc;
+        }, {});
+
+      const proPayments = profiles
+        .filter(p => p.role === 'pro_tipster')
+        .map(p => ({ email: p.email, amount: p.monthly_payment || 0 }));
+
+      const influencerPayments = profiles
+        .filter(p => p.role === 'influencer')
+        .map(p => ({ email: p.email, amount: p.monthly_payment || 0 }));
+
+      const totalMonthlyCosts = [...proPayments, ...influencerPayments].reduce((sum, p) => sum + p.amount, 0);
+
+      const { data: proRequests, error: requestError } = await supabase
+        .from('pro_requests')
+        .select('*, profiles(nickname, email)')
+        .eq('status', 'pending');
+
+      if (requestError) {
+        console.error('Greška prilikom dohvaćanja zahtjeva za PRO:', requestError);
+      }
+
+      setCounts({
+        subscribers,
+        activeSubscribers,
+        amateurTipsters,
+        proTipsters,
+        influencers,
+        referralStats,
+        totalMonthlyCosts,
+        proPayments,
+        influencerPayments,
+        proRequests: proRequests || []
+      });
+
+      setLoading(false);
+    };
+
     fetchCounts();
   }, []);
 
-  const fetchCounts = async () => {
-    const { data: profiles, error } = await supabase.from('profiles').select('*');
-    if (error) {
-      console.error('Error fetching profiles:', error);
-      return;
+  const handleAddTipster = async () => {
+    const email = prompt('Unesi email tipstera:');
+    if (!email) return;
+    const nickname = prompt('Unesi nadimak tipstera:');
+    if (!nickname) return;
+    const isPro = confirm('Je li tipster PRO? Klikni OK za PRO, Cancel za Amatera.');
+    const role = isPro ? 'pro_tipster' : 'amateur_tipster';
+
+    let monthly_payment = null;
+    if (isPro) {
+      const paymentInput = prompt('Unesi mjesečni iznos koji plaćaš PRO tipsteru (u €):');
+      monthly_payment = parseFloat(paymentInput);
     }
 
-    const subscribers = profiles.filter(p => p.role === 'subscriber').length;
-    const activeSubscribers = profiles.filter(p => p.role === 'subscriber' && p.is_subscribed === true).length;
-    const amateurTipsters = profiles.filter(p => p.role === 'amateur_tipster').length;
-    const proTipsters = profiles.filter(p => p.role === 'pro_tipster').length;
-    const influencers = profiles.filter(p => p.role === 'influencer').length;
+    const { error } = await supabase.from('profiles').insert([{ email, role, nickname, monthly_payment }]);
+    if (error) return alert('Greška prilikom dodavanja!');
+    alert('Tipster dodan!');
+    location.reload();
+  };
 
-    const proPayments = profiles
-      .filter(p => p.role === 'pro_tipster')
-      .map(p => ({
-        email: p.email,
-        amount: p.monthly_payment || 0,
-      }));
+  const handleAddInfluencer = async () => {
+    const email = prompt('Unesi email influencera:');
+    if (!email) return;
+    const referral_code = 'ref_' + uuidv4().split('-')[0];
+    const paymentInput = prompt('Unesi mjesečni iznos koji plaćaš influenceru (u €):');
+    const monthly_payment = parseFloat(paymentInput);
 
-    const influencerPayments = profiles
-      .filter(p => p.role === 'influencer')
-      .map(p => ({
-        email: p.email,
-        amount: p.monthly_payment || 0,
-      }));
+    const { error } = await supabase.from('profiles').insert([{ email, role: 'influencer', referral_code, monthly_payment }]);
+    if (error) return alert('Greška prilikom dodavanja!');
+    alert(`Influencer dodan s referral kodom: ${referral_code}`);
+    location.reload();
+  };
 
-    const totalMonthlyCosts = [...proPayments, ...influencerPayments].reduce((sum, p) => sum + p.amount, 0);
+  const handleCreateChallenge = () => {
+    router.push('/dashboard/admin/create-challenge');
+  };
 
-    const proRequests = profiles.filter(p => p.pro_request === true);
+  const handleApproveRequest = async (userId) => {
+    await supabase.from('profiles').update({ role: 'pro_tipster' }).eq('id', userId);
+    await supabase.from('pro_requests').update({ status: 'approved' }).eq('user_id', userId);
+    alert('Zahtjev prihvaćen i korisnik postao PRO!');
+    location.reload();
+  };
 
-    setCounts({
-      subscribers,
-      activeSubscribers,
-      amateurTipsters,
-      proTipsters,
-      influencers,
-      referralStats: {}, // Add real logic if needed
-      totalMonthlyCosts,
-      proPayments,
-      influencerPayments,
-      proRequests,
-    });
+  const handleRejectRequest = async (userId) => {
+    await supabase.from('pro_requests').update({ status: 'rejected' }).eq('user_id', userId);
+    alert('Zahtjev odbijen.');
+    location.reload();
   };
 
   return (
-    <div className="min-h-screen bg-black text-white p-6">
-      <h1 className="text-3xl font-bold mb-6">Admin Dashboard</h1>
+    <div className="p-6 space-y-6 bg-[#0f0f0f] text-white min-h-screen">
+      <h1 className="text-3xl font-bold">Admin Dashboard</h1>
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-        <div className="bg-white text-black rounded-xl shadow p-4">
-          <p className="text-sm font-medium">Pretplatnici</p>
-          <p className="text-2xl font-bold">{counts.subscribers}</p>
-        </div>
-        <div className="bg-white text-black rounded-xl shadow p-4">
-          <p className="text-sm font-medium">Aktivni</p>
-          <p className="text-2xl font-bold">{counts.activeSubscribers}</p>
-        </div>
-        <div className="bg-white text-black rounded-xl shadow p-4">
-          <p className="text-sm font-medium">Amaterski Tipsteri</p>
-          <p className="text-2xl font-bold">{counts.amateurTipsters}</p>
-        </div>
-        <div className="bg-white text-black rounded-xl shadow p-4">
-          <p className="text-sm font-medium">PRO Tipsteri</p>
-          <p className="text-2xl font-bold">{counts.proTipsters}</p>
-        </div>
-        <div className="bg-white text-black rounded-xl shadow p-4">
-          <p className="text-sm font-medium">Influenceri</p>
-          <p className="text-2xl font-bold">{counts.influencers}</p>
-        </div>
-      </div>
+      {loading ? (
+        <p className="text-lg">Učitavanje...</p>
+      ) : (
+        <>
+          {/* KARTICE */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            <StatCard title="Pretplatnici (svi)" value={counts.subscribers} />
+            <StatCard title="Aktivni pretplatnici" value={counts.activeSubscribers} />
+            <StatCard title="Amaterski tipsteri" value={counts.amateurTipsters} />
+            <StatCard title="PRO tipsteri" value={counts.proTipsters} />
+            <StatCard title="Influenceri" value={counts.influencers} />
+          </div>
 
-      <div className="mb-6">
-        <h2 className="text-xl font-semibold mb-2">Referral statistika</h2>
-        <p className="text-sm italic text-gray-400">Još nije implementirano.</p>
-      </div>
+          {/* MJ. TROŠKOVI */}
+          <section className="bg-[#1a1a1a] p-4 rounded">
+            <h2 className="text-xl font-semibold mb-2">Mjesečni trošak</h2>
+            <p className="mb-4 text-lg">Ukupno: <strong>{counts.totalMonthlyCosts} €</strong> / mjesec</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+              <div>
+                <h3 className="font-semibold text-white mb-1">PRO Tipsteri</h3>
+                {counts.proPayments.map(p => (
+                  <p key={p.email}>{p.email} – {p.amount} €</p>
+                ))}
+              </div>
+              <div>
+                <h3 className="font-semibold text-white mb-1">Influenceri</h3>
+                {counts.influencerPayments.map(p => (
+                  <p key={p.email}>{p.email} – {p.amount} €</p>
+                ))}
+              </div>
+            </div>
+          </section>
 
-      <div className="mb-6">
-        <h2 className="text-xl font-semibold mb-2">Mjesečni trošak</h2>
-        <p className="mb-2">Ukupno: {counts.totalMonthlyCosts} € / mjesec</p>
-        <h3 className="font-semibold">PRO Tipsteri:</h3>
-        {counts.proPayments.map((p, i) => (
-          <p key={i}>{p.email} – {p.amount} €</p>
-        ))}
-        <h3 className="font-semibold mt-4">Influenceri:</h3>
-        {counts.influencerPayments.length === 0 && <p className="text-gray-400">Nema influencera.</p>}
-        {counts.influencerPayments.map((p, i) => (
-          <p key={i}>{p.email} – {p.amount} €</p>
-        ))}
-      </div>
+          {/* REFERRAL */}
+          <section className="bg-[#1a1a1a] p-4 rounded">
+            <h2 className="text-xl font-semibold mb-2">Referral statistika</h2>
+            {Object.entries(counts.referralStats).length === 0 ? (
+              <p>Nema referral podataka.</p>
+            ) : (
+              Object.entries(counts.referralStats).map(([code, total]) => (
+                <p key={code}>{code}: {total} pretplatnik(a)</p>
+              ))
+            )}
+          </section>
 
-      <div className="mb-6">
-        <h2 className="text-xl font-semibold mb-2">Zahtjevi za PRO status</h2>
-        {counts.proRequests.length === 0 ? (
-          <p className="text-gray-400">Nema novih zahtjeva.</p>
-        ) : (
-          counts.proRequests.map((r, i) => (
-            <p key={i}>{r.email}</p>
-          ))
-        )}
-      </div>
+          {/* PRO REQUESTS */}
+          <section className="bg-[#1a1a1a] p-4 rounded">
+            <h2 className="text-xl font-semibold mb-2">Zahtjevi za PRO status</h2>
+            {counts?.proRequests?.length > 0 ? (
+              counts.proRequests.map(req => (
+                <div key={req.id} className="bg-[#2b2b2b] p-4 rounded mb-2">
+                  <p><strong>{req.profiles?.nickname || 'Nepoznat'}</strong> ({req.profiles?.email}) traži PRO status.</p>
+                  <div className="mt-2 flex gap-2">
+                    <Button onClick={() => handleApproveRequest(req.user_id)} className="bg-green-600 hover:bg-green-700">Prihvati</Button>
+                    <Button onClick={() => handleRejectRequest(req.user_id)} className="bg-red-600 hover:bg-red-700">Odbij</Button>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p>Nema zahtjeva za PRO status.</p>
+            )}
+          </section>
 
-      <div className="flex gap-4 mt-4">
-        <button
-          onClick={() => router.push('/dashboard/admin/add-tipster')}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
-        >
-          Dodaj novog tipstera
-        </button>
-        <button
-          onClick={() => router.push('/dashboard/admin/add-influencer')}
-          className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded"
-        >
-          Dodaj influencera
-        </button>
-        <button
-          onClick={() => router.push('/dashboard/admin/create-challenge')}
-          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
-        >
-          Kreiraj izazov
-        </button>
-      </div>
+          {/* GUMBI */}
+          <div className="flex flex-wrap gap-4 pt-4">
+            <Button onClick={handleAddTipster}>➕ Dodaj tipstera</Button>
+            <Button onClick={handleAddInfluencer}>➕ Dodaj influencera</Button>
+            <Button onClick={handleCreateChallenge}>🏆 Kreiraj izazov</Button>
+          </div>
+        </>
+      )}
     </div>
   );
-}
+};
+
+// Komponenta za kartice
+const StatCard = ({ title, value }) => (
+  <Card className="bg-[#1f1f1f] text-white shadow-md">
+    <CardHeader>
+      <CardTitle className="text-base text-gray-300">{title}</CardTitle>
+    </CardHeader>
+    <CardContent>
+      <p className="text-2xl font-bold">{value}</p>
+    </CardContent>
+  </Card>
+);
+
+export default AdminDashboard;
