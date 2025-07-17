@@ -1,117 +1,174 @@
-// Put your existing imports here
-import { useEffect, useState } from 'react';
-import { supabase } from '../../utils/supabaseClient';
-import { useUser } from '@supabase/auth-helpers-react';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/lib/customSupabaseClient';
+import { useRouter } from 'next/router';
+import { v4 as uuidv4 } from 'uuid';
 
 export default function ProTipsterDashboard() {
-  const user = useUser();
-  const [bets, setBets] = useState([]);
-  const [newBet, setNewBet] = useState({ title: '', analysis: '', stake: '', total_odds: '', pair: '', tip: '', kvota: '' });
-  const [balance, setBalance] = useState(10000);
-  const [view, setView] = useState('pro');
+  const [userId, setUserId] = useState(null);
+  const [nickname, setNickname] = useState('');
+  const [saldo, setSaldo] = useState(10000);
+  const [parovi, setParovi] = useState([{ par: '', kvota: '', tip: '' }]);
+  const [ulog, setUlog] = useState('');
+  const [naslov, setNaslov] = useState('');
+  const [analiza, setAnaliza] = useState('');
+  const [status, setStatus] = useState('pending');
+  const [proListici, setProListici] = useState([]);
+  const [amateurListici, setAmateurListici] = useState([]);
+  const [comments, setComments] = useState({});
+  const [likes, setLikes] = useState({});
+  const [newComments, setNewComments] = useState({});
+  const [expandedPro, setExpandedPro] = useState(true);
+  const [expandedAmateur, setExpandedAmateur] = useState(true);
+  const [mojiListici, setMojiListici] = useState([]);
+  const router = useRouter();
 
   useEffect(() => {
-    fetchBets();
+    const fetchData = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return router.push('/');
+      setUserId(user.id);
+
+      const { data: profile } = await supabase.from('profiles').select('nickname').eq('id', user.id).single();
+      if (profile) setNickname(profile.nickname);
+
+      await fetchListici(user.id);
+      await fetchSviListici();
+    };
+    fetchData();
   }, []);
 
-  useEffect(() => {
-    calculateBalance();
-  }, [bets]);
-
-  const fetchBets = async () => {
-    const { data, error } = await supabase.from('bets').select('*');
-    if (!error) setBets(data);
+  const fetchListici = async (id) => {
+    const { data } = await supabase.from('bets').select('*').eq('user_id', id);
+    if (data) {
+      setMojiListici(data);
+      let saldoTemp = 10000;
+      data.forEach(bet => {
+        if (bet.status === 'won') {
+          saldoTemp += bet.stake * bet.total_odds;
+        } else if (bet.status === 'lost') {
+          saldoTemp -= bet.stake;
+        }
+      });
+      setSaldo(saldoTemp);
+    }
   };
 
-  const calculateBalance = () => {
-    let saldo = 10000;
-    bets.forEach((bet) => {
-      if (bet.user_id === user.id && bet.status === 'won') {
-        saldo += bet.stake * bet.total_odds;
-      } else if (bet.user_id === user.id && bet.status === 'lost') {
-        saldo -= bet.stake;
-      }
+  const fetchSviListici = async () => {
+    const { data: pro } = await supabase.from('bets').select('*, profiles(nickname)').eq('role', 'pro_tipster');
+    const { data: amateur } = await supabase.from('bets').select('*, profiles(nickname)').eq('role', 'amateur_tipster');
+    setProListici(pro || []);
+    setAmateurListici(amateur || []);
+
+    const allBets = [...(pro || []), ...(amateur || [])];
+    const betIds = allBets.map(b => b.id);
+    const { data: komentarData } = await supabase.from('comments').select('*').in('bet_id', betIds);
+    const { data: likeData } = await supabase.from('likes').select('*').in('bet_id', betIds);
+
+    const groupedComments = {};
+    komentarData?.forEach(c => {
+      if (!groupedComments[c.bet_id]) groupedComments[c.bet_id] = [];
+      groupedComments[c.bet_id].push(c);
     });
-    setBalance(saldo);
+    setComments(groupedComments);
+
+    const groupedLikes = {};
+    likeData?.forEach(l => {
+      if (!groupedLikes[l.bet_id]) groupedLikes[l.bet_id] = [];
+      groupedLikes[l.bet_id].push(l);
+    });
+    setLikes(groupedLikes);
   };
 
-  const handleCreateBet = async () => {
-    const { title, analysis, stake, total_odds, pair, tip, kvota } = newBet;
-    const pairData = [{ par: pair, tip: tip, kvota: kvota }];
-    const { error } = await supabase.from('bets').insert([
-      {
-        user_id: user.id,
-        title,
-        analysis,
-        stake: Number(stake),
-        total_odds: Number(total_odds),
-        pairs: pairData,
-        status: 'pending',
-        role: 'pro_tipster',
-      },
-    ]);
-    if (!error) {
-      setNewBet({ title: '', analysis: '', stake: '', total_odds: '', pair: '', tip: '', kvota: '' });
-      fetchBets();
-    }
+  const handleChangeStatus = async (id, newStatus) => {
+    await supabase.from('bets').update({ status: newStatus }).eq('id', id).eq('user_id', userId);
+    await fetchSviListici();
+    await fetchListici(userId);
   };
 
-  const handleMark = async (betId, status) => {
-    const { error } = await supabase.from('bets').update({ status }).eq('id', betId);
-    if (!error) {
-      fetchBets();
-    }
+  const renderComments = (betId) => {
+    const betComments = comments[betId] || [];
+    return (
+      <div className="ml-4 mt-2">
+        {betComments.map(c => (
+          <div key={c.id} className="flex justify-between text-sm border-b border-gray-600 py-1">
+            <span><strong>{c.nickname}</strong>: {c.content}</span>
+            {c.user_id === userId && (
+              <button onClick={() => handleDeleteComment(c.id)} className="text-red-400 text-xs ml-2">Obriši</button>
+            )}
+          </div>
+        ))}
+        <div className="flex gap-2 mt-2">
+          <input className="p-1 bg-gray-800 text-white w-full"
+            placeholder="Komentar..." value={newComments[betId] || ''}
+            onChange={(e) => handleCommentChange(betId, e.target.value)} />
+          <button onClick={() => handleAddComment(betId)} className="bg-blue-600 px-2 rounded">Komentiraj</button>
+        </div>
+      </div>
+    );
   };
 
-  const filteredBets = bets.filter((bet) =>
-    view === 'pro' ? bet.role === 'pro_tipster' : bet.role === 'amateur_tipster'
+  const ukupnaKvota = () => {
+    return parovi.reduce((acc, p) => acc * parseFloat(p.kvota || 1), 1).toFixed(2);
+  };
+
+  const renderListic = (l) => (
+    <div key={l.id} className="border-b border-gray-600 py-2">
+      <p><strong>{l.profiles?.nickname || 'Nepoznat'}:</strong> {l.title}</p>
+      <p>{l.pairs.map(p => `${p.par} (${p.tip}) - ${p.kvota}`).join(', ')}</p>
+      <p>Kvota: {l.total_odds} - Ulog: {l.stake} - Status: {l.status}</p>
+      {l.user_id === userId && l.status === 'pending' && (
+        <div className="flex gap-2 my-2">
+          <button onClick={() => handleChangeStatus(l.id, 'won')} className="bg-green-600 px-2 rounded">Označi kao dobitan</button>
+          <button onClick={() => handleChangeStatus(l.id, 'lost')} className="bg-red-600 px-2 rounded">Označi kao gubitan</button>
+        </div>
+      )}
+      <p>👍 {likes[l.id]?.length || 0}</p>
+      <button onClick={() => handleLike(l.id)} className="text-green-400 text-sm">Lajkaj</button>
+      {renderComments(l.id)}
+    </div>
   );
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push('/');
+  };
+
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold">Pro Tipster Dashboard</h1>
-      <p className="mb-4">Tvoj saldo: €{balance.toFixed(2)}</p>
-
-      <div className="mb-4">
-        <select
-          value={view}
-          onChange={(e) => setView(e.target.value)}
-          className="p-2 border border-gray-300 rounded"
-        >
-          <option value="pro">PRO Tipseri listići</option>
-          <option value="amateur">Amaterski Tipseri listići</option>
-        </select>
+    <div className="p-4 text-white bg-black min-h-screen">
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-2xl font-bold">PRO Tipster Dashboard</h1>
+        <button onClick={handleLogout} className="bg-red-600 px-4 py-2 rounded">Odjava</button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-        <input type="text" placeholder="Naslov" value={newBet.title} onChange={(e) => setNewBet({ ...newBet, title: e.target.value })} className="p-2 border" />
-        <input type="text" placeholder="Analiza" value={newBet.analysis} onChange={(e) => setNewBet({ ...newBet, analysis: e.target.value })} className="p-2 border" />
-        <input type="number" placeholder="Ulog" value={newBet.stake} onChange={(e) => setNewBet({ ...newBet, stake: e.target.value })} className="p-2 border" />
-        <input type="number" placeholder="Ukupna kvota" value={newBet.total_odds} onChange={(e) => setNewBet({ ...newBet, total_odds: e.target.value })} className="p-2 border" />
-        <input type="text" placeholder="Par" value={newBet.pair} onChange={(e) => setNewBet({ ...newBet, pair: e.target.value })} className="p-2 border" />
-        <input type="text" placeholder="Tip" value={newBet.tip} onChange={(e) => setNewBet({ ...newBet, tip: e.target.value })} className="p-2 border" />
-        <input type="text" placeholder="Kvota" value={newBet.kvota} onChange={(e) => setNewBet({ ...newBet, kvota: e.target.value })} className="p-2 border" />
-        <button onClick={handleCreateBet} className="bg-blue-600 text-white p-2 rounded">Dodaj listić</button>
-      </div>
+      <h2 className="text-lg mt-2">Tvoj saldo: <span className="font-bold text-yellow-400">{saldo.toFixed(2)}€</span></h2>
 
-      {filteredBets.map((bet) => (
-        <div key={bet.id} className="border p-4 mb-4 rounded shadow">
-          <p><strong>{bet.title}</strong></p>
-          <p>{bet.analysis}</p>
-          <p>Ulog: €{bet.stake}</p>
-          <p>Ukupna kvota: {bet.total_odds}</p>
-          {bet.pairs?.map((p, i) => (
-            <p key={i}>Par: {p.par} | Tip: {p.tip} | Kvota: {p.kvota}</p>
-          ))}
-          <p>Status: <span className={`font-semibold ${bet.status === 'won' ? 'text-green-600' : bet.status === 'lost' ? 'text-red-600' : 'text-yellow-600'}`}>{bet.status}</span></p>
-          {bet.user_id === user.id && bet.status === 'pending' && (
-            <div className="mt-2 flex gap-2">
-              <button onClick={() => handleMark(bet.id, 'won')} className="bg-green-600 px-2 rounded text-white">Označi kao dobitan</button>
-              <button onClick={() => handleMark(bet.id, 'lost')} className="bg-red-600 px-2 rounded text-white">Označi kao gubitan</button>
-            </div>
-          )}
+      <h2 className="text-xl font-bold mb-2 mt-4">Unesi novi listić</h2>
+      <input value={naslov} onChange={e => setNaslov(e.target.value)} className="mb-1 p-1 w-full bg-gray-800" placeholder="Naslov" />
+      <input value={ulog} onChange={e => setUlog(e.target.value)} className="mb-1 p-1 w-full bg-gray-800" placeholder="Ulog (€)" />
+      {parovi.map((p, i) => (
+        <div key={i} className="flex gap-2 mb-1">
+          <input value={p.par} onChange={e => handleChangePar(i, 'par', e.target.value)} placeholder="Par" className="bg-gray-800 p-1 w-1/3" />
+          <input value={p.tip} onChange={e => handleChangePar(i, 'tip', e.target.value)} placeholder="Tip" className="bg-gray-800 p-1 w-1/3" />
+          <input value={p.kvota} onChange={e => handleChangePar(i, 'kvota', e.target.value)} placeholder="Kvota" className="bg-gray-800 p-1 w-1/3" />
         </div>
       ))}
+      <button onClick={handleDodajPar} className="bg-gray-700 px-2 py-1 mb-2 rounded">Dodaj par</button>
+      <textarea value={analiza} onChange={e => setAnaliza(e.target.value)} placeholder="Analiza" className="bg-gray-800 w-full p-1 mb-2" />
+      <button onClick={handleUnosListica} className="bg-green-600 px-4 py-2 rounded">Objavi listić</button>
+
+      <div className="mt-6">
+        <button onClick={() => setExpandedPro(!expandedPro)} className="w-full bg-gray-700 p-2 rounded">
+          {expandedPro ? 'Sakrij PRO listiće' : 'Prikaži PRO listiće'}
+        </button>
+        {expandedPro && proListici.map(renderListic)}
+      </div>
+
+      <div className="mt-6">
+        <button onClick={() => setExpandedAmateur(!expandedAmateur)} className="w-full bg-gray-700 p-2 rounded">
+          {expandedAmateur ? 'Sakrij amaterske listiće' : 'Prikaži amaterske listiće'}
+        </button>
+        {expandedAmateur && amateurListici.map(renderListic)}
+      </div>
     </div>
   );
 }
