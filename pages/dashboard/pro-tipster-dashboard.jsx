@@ -109,6 +109,7 @@ export default function ProTipsterDashboard() {
     await fetchListici(userId);
     await fetchSviListici();
   };
+
   const handleCommentChange = (betId, content) => {
     setNewComments(prev => ({ ...prev, [betId]: content }));
   };
@@ -130,8 +131,12 @@ export default function ProTipsterDashboard() {
   };
 
   const handleDeleteComment = async (commentId) => {
-    await supabase.from('comments').delete().eq('id', commentId);
-    await fetchSviListici();
+    const { error } = await supabase.from('comments').delete().eq('id', commentId);
+    if (error) {
+      console.error('Greška pri brisanju komentara:', error);
+    } else {
+      await fetchSviListici();
+    }
   };
 
   const handleLike = async (betId) => {
@@ -153,9 +158,18 @@ export default function ProTipsterDashboard() {
   };
 
   const handleChangeStatus = async (id, newStatus) => {
-    await supabase.from('bets').update({ status: newStatus }).eq('id', id).eq('user_id', userId);
-    await fetchSviListici();
-    await fetchListici(userId);
+    const { error } = await supabase
+      .from('bets')
+      .update({ status: newStatus })
+      .eq('id', id)
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('Greška pri promjeni statusa:', error);
+    } else {
+      await fetchSviListici();
+      await fetchListici(userId);
+    }
   };
 
   const ukupnaKvota = () => {
@@ -182,9 +196,12 @@ export default function ProTipsterDashboard() {
               </div>
             ))}
             <div className="flex gap-2 mt-2">
-              <input className="p-1 bg-gray-800 text-white w-full"
-                placeholder="Komentar..." value={newComments[betId] || ''}
-                onChange={(e) => handleCommentChange(betId, e.target.value)} />
+              <input
+                className="p-1 bg-gray-800 text-white w-full"
+                placeholder="Komentar..."
+                value={newComments[betId] || ''}
+                onChange={(e) => handleCommentChange(betId, e.target.value)}
+              />
               <button onClick={() => handleAddComment(betId)} className="bg-blue-600 px-2 rounded">Komentiraj</button>
             </div>
           </div>
