@@ -179,6 +179,9 @@ export default function ProTipsterDashboard() {
   const renderListic = (l) => (
     <div key={l.id} className="border-b border-gray-600 py-2">
       <p><strong>{l.profiles?.nickname || 'Nepoznat'}:</strong> {l.title}</p>
+      {l.analysis && (
+  <p className="italic text-gray-400 mt-1">Analiza: {l.analysis}</p>
+)}
       <p>{l.pairs.map(p => `${p.par} (${p.tip}) - ${p.kvota}`).join(', ')}</p>
       <p>Kvota: {l.total_odds} - Ulog: {l.stake} - Status: {l.status}</p>
       {l.user_id === userId && l.status === 'pending' && (
