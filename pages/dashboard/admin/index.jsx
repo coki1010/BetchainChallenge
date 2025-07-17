@@ -26,6 +26,7 @@ const AdminDashboard = () => {
       setLoading(true);
 
       const { data: profiles, error } = await supabase.from('profiles').select('*');
+      console.log("🚀 PROFILI:", profiles);
 
       if (error) {
         console.error('Error fetching profiles:', error);
@@ -144,45 +145,25 @@ const AdminDashboard = () => {
       ) : (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-5 gap-4">
-            <Card className="bg-white shadow-xl">
-              <CardHeader>
-                <CardTitle className="text-black">Pretplatnici (svi)</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-black text-xl">{counts.subscribers}</p>
-              </CardContent>
+            <Card className="bg-white text-black">
+              <CardHeader><CardTitle className="text-black">Pretplatnici (svi)</CardTitle></CardHeader>
+              <CardContent><p className="text-xl">{counts.subscribers}</p></CardContent>
             </Card>
-            <Card className="bg-white shadow-xl">
-              <CardHeader>
-                <CardTitle className="text-black">Aktivni pretplatnici</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-black text-xl">{counts.activeSubscribers}</p>
-              </CardContent>
+            <Card className="bg-white text-black">
+              <CardHeader><CardTitle className="text-black">Aktivni pretplatnici</CardTitle></CardHeader>
+              <CardContent><p className="text-xl">{counts.activeSubscribers}</p></CardContent>
             </Card>
-            <Card className="bg-white shadow-xl">
-              <CardHeader>
-                <CardTitle className="text-black">Amaterski tipsteri</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-black text-xl">{counts.amateurTipsters}</p>
-              </CardContent>
+            <Card className="bg-white text-black">
+              <CardHeader><CardTitle className="text-black">Amaterski tipsteri</CardTitle></CardHeader>
+              <CardContent><p className="text-xl">{counts.amateurTipsters}</p></CardContent>
             </Card>
-            <Card className="bg-white shadow-xl">
-              <CardHeader>
-                <CardTitle className="text-black">PRO tipsteri</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-black text-xl">{counts.proTipsters}</p>
-              </CardContent>
+            <Card className="bg-white text-black">
+              <CardHeader><CardTitle className="text-black">PRO tipsteri</CardTitle></CardHeader>
+              <CardContent><p className="text-xl">{counts.proTipsters}</p></CardContent>
             </Card>
-            <Card className="bg-white shadow-xl">
-              <CardHeader>
-                <CardTitle className="text-black">Influenceri</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-black text-xl">{counts.influencers}</p>
-              </CardContent>
+            <Card className="bg-white text-black">
+              <CardHeader><CardTitle className="text-black">Influenceri</CardTitle></CardHeader>
+              <CardContent><p className="text-xl">{counts.influencers}</p></CardContent>
             </Card>
           </div>
 
@@ -235,10 +216,10 @@ const AdminDashboard = () => {
         </>
       )}
 
-      <div className="pt-4 flex flex-wrap gap-2">
-        <Button onClick={handleAddTipster} className="bg-blue-600 hover:bg-blue-700">Dodaj novog tipstera</Button>
-        <Button onClick={handleAddInfluencer} className="bg-blue-600 hover:bg-blue-700">Dodaj influencera</Button>
-        <Button onClick={handleCreateChallenge} className="bg-yellow-500 hover:bg-yellow-600 text-black">Kreiraj izazov</Button>
+      <div className="pt-4">
+        <Button onClick={handleAddTipster}>Dodaj novog tipstera</Button>
+        <Button className="ml-2" onClick={handleAddInfluencer}>Dodaj influencera</Button>
+        <Button className="ml-2" onClick={handleCreateChallenge}>Kreiraj izazov</Button>
       </div>
     </div>
   );
