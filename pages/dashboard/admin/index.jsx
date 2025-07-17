@@ -24,8 +24,8 @@ const AdminDashboard = () => {
   useEffect(() => {
     const fetchCounts = async () => {
       setLoading(true);
-
       const { data: profiles, error } = await supabase.from('profiles').select('*');
+
       if (error) {
         console.error('Error fetching profiles:', error);
         return;
@@ -135,100 +135,90 @@ const AdminDashboard = () => {
   };
 
   return (
-    <div className="p-6 space-y-6 bg-[#0f0f0f] text-white min-h-screen">
-      <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+    <div className="p-6 space-y-4 bg-[#0f0f0f] text-white min-h-screen">
+      <h1 className="text-2xl font-bold">Admin Dashboard</h1>
 
       {loading ? (
-        <p className="text-lg">Učitavanje...</p>
+        <p>Loading...</p>
       ) : (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
-            {[
-              { label: 'Pretplatnici (svi)', value: counts.subscribers },
-              { label: 'Aktivni pretplatnici', value: counts.activeSubscribers },
-              { label: 'Amaterski tipsteri', value: counts.amateurTipsters },
-              { label: 'PRO tipsteri', value: counts.proTipsters },
-              { label: 'Influenceri', value: counts.influencers }
-            ].map((item, index) => (
-              <Card key={index} className="bg-[#1f1f1f] hover:shadow-xl transition">
-                <CardHeader>
-                  <CardTitle className="text-white text-sm">{item.label}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-white text-2xl">{item.value}</p>
-                </CardContent>
-              </Card>
+          <div className="grid grid-cols-1 sm:grid-cols-5 gap-4">
+            <Card className="bg-white shadow-xl">
+              <CardHeader><CardTitle className="text-black">Pretplatnici (svi)</CardTitle></CardHeader>
+              <CardContent><p className="text-black text-xl">{counts.subscribers}</p></CardContent>
+            </Card>
+            <Card className="bg-white shadow-xl">
+              <CardHeader><CardTitle className="text-black">Aktivni pretplatnici</CardTitle></CardHeader>
+              <CardContent><p className="text-black text-xl">{counts.activeSubscribers}</p></CardContent>
+            </Card>
+            <Card className="bg-white shadow-xl">
+              <CardHeader><CardTitle className="text-black">Amaterski tipsteri</CardTitle></CardHeader>
+              <CardContent><p className="text-black text-xl">{counts.amateurTipsters}</p></CardContent>
+            </Card>
+            <Card className="bg-white shadow-xl">
+              <CardHeader><CardTitle className="text-black">PRO tipsteri</CardTitle></CardHeader>
+              <CardContent><p className="text-black text-xl">{counts.proTipsters}</p></CardContent>
+            </Card>
+            <Card className="bg-white shadow-xl">
+              <CardHeader><CardTitle className="text-black">Influenceri</CardTitle></CardHeader>
+              <CardContent><p className="text-black text-xl">{counts.influencers}</p></CardContent>
+            </Card>
+          </div>
+
+          <div className="pt-6 bg-white p-4 rounded shadow-xl">
+            <h2 className="text-xl font-semibold mb-2 text-black">Referral statistika</h2>
+            {Object.entries(counts.referralStats).map(([code, total]) => (
+              <p key={code} className="text-black">{code}: {total} pretplatnik(a)</p>
             ))}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card className="bg-[#1f1f1f]">
-              <CardHeader><CardTitle className="text-white">Referral statistika</CardTitle></CardHeader>
-              <CardContent>
-                {Object.entries(counts.referralStats).length === 0 ? (
-                  <p>Nema referral podataka.</p>
-                ) : (
-                  <ul className="space-y-1 text-sm">
-                    {Object.entries(counts.referralStats).map(([code, total]) => (
-                      <li key={code} className="text-white">{code}: {total} pretplatnik(a)</li>
-                    ))}
-                  </ul>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card className="bg-[#1f1f1f]">
-              <CardHeader><CardTitle className="text-white">Mjesečni trošak</CardTitle></CardHeader>
-              <CardContent>
-                <p className="mb-2">Ukupno: {counts.totalMonthlyCosts} € / mjesec</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <h3 className="font-semibold text-white">PRO Tipsteri:</h3>
-                    <ul>
-                      {counts.proPayments.map(p => (
-                        <li key={p.email}>{p.email} – {p.amount} €</li>
-                      ))}
-                    </ul>
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-white">Influenceri:</h3>
-                    <ul>
-                      {counts.influencerPayments.map(p => (
-                        <li key={p.email}>{p.email} – {p.amount} €</li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+          <div className="pt-6 bg-white p-4 rounded shadow-xl">
+            <h2 className="text-xl font-semibold mb-2 text-black">Mjesečni trošak</h2>
+            <p className="mb-2 text-black">Ukupno: {counts.totalMonthlyCosts} € / mjesec</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <h3 className="font-semibold text-black">PRO Tipsteri:</h3>
+                <ul>
+                  {counts.proPayments.map(p => (
+                    <li key={p.email} className="text-black">{p.email} – {p.amount} €</li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <h3 className="font-semibold text-black">Influenceri:</h3>
+                <ul>
+                  {counts.influencerPayments.map(p => (
+                    <li key={p.email} className="text-black">{p.email} – {p.amount} €</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
           </div>
 
-          <Card className="bg-[#1f1f1f]">
-            <CardHeader><CardTitle className="text-white">Zahtjevi za PRO status</CardTitle></CardHeader>
-            <CardContent>
-              {counts?.proRequests?.length > 0 ? (
-                counts.proRequests.map(req => (
-                  <div key={req.id} className="mb-4 border-b border-gray-700 pb-4">
-                    <p><strong>{req.profiles?.nickname || 'Nepoznat'}</strong> ({req.profiles?.email})</p>
-                    <div className="mt-2 flex gap-2">
-                      <Button className="bg-green-600 hover:bg-green-700" onClick={() => handleApproveRequest(req.user_id)}>Prihvati</Button>
-                      <Button className="bg-red-600 hover:bg-red-700" onClick={() => handleRejectRequest(req.user_id)}>Odbij</Button>
-                    </div>
+          <div className="pt-6 bg-white p-4 rounded shadow-xl">
+            <h2 className="text-xl font-semibold mb-2 text-black">Zahtjevi za PRO status</h2>
+            {counts?.proRequests?.length > 0 ? (
+              counts.proRequests.map(req => (
+                <div key={req.id} className="bg-gray-100 p-4 rounded mb-2">
+                  <p className="text-black"><strong>{req.profiles?.nickname || 'Nepoznat'}</strong> ({req.profiles?.email}) traži PRO status.</p>
+                  <div className="mt-2 flex gap-2">
+                    <Button onClick={() => handleApproveRequest(req.user_id)} className="bg-green-600">Prihvati</Button>
+                    <Button onClick={() => handleRejectRequest(req.user_id)} className="bg-red-600">Odbij</Button>
                   </div>
-                ))
-              ) : (
-                <p className="text-sm">Nema zahtjeva za PRO status.</p>
-              )}
-            </CardContent>
-          </Card>
-
-          <div className="flex flex-wrap gap-4 pt-4">
-            <Button onClick={handleAddTipster} className="bg-blue-600 hover:bg-blue-700">Dodaj novog tipstera</Button>
-            <Button onClick={handleAddInfluencer} className="bg-blue-600 hover:bg-blue-700">Dodaj influencera</Button>
-            <Button onClick={handleCreateChallenge} className="bg-yellow-600 hover:bg-yellow-700">Kreiraj izazov</Button>
+                </div>
+              ))
+            ) : (
+              <p className="text-black">Nema novih zahtjeva.</p>
+            )}
           </div>
         </>
       )}
+
+      <div className="pt-4 flex flex-wrap gap-2">
+        <Button onClick={handleAddTipster} className="bg-blue-600">Dodaj novog tipstera</Button>
+        <Button onClick={handleAddInfluencer} className="bg-blue-600">Dodaj influencera</Button>
+        <Button onClick={handleCreateChallenge} className="bg-yellow-500 text-black hover:bg-yellow-400">Kreiraj izazov</Button>
+      </div>
     </div>
   );
 };
