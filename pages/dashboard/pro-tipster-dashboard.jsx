@@ -41,8 +41,10 @@ export default function ProTipsterDashboard() {
     if (data) {
       let saldoTemp = 10000;
       data.forEach(bet => {
-        if (bet.status === 'won') saldoTemp += bet.stake * bet.total_odds;
-        else if (bet.status === 'lose') saldoTemp -= bet.stake;
+        const stake = parseFloat(bet.stake);
+        const odds = parseFloat(bet.total_odds);
+        if (bet.status === 'win') saldoTemp += stake * odds;
+        else if (bet.status === 'lose') saldoTemp -= stake;
       });
       setSaldo(saldoTemp);
     }
@@ -109,7 +111,6 @@ export default function ProTipsterDashboard() {
     await fetchListici(userId);
     await fetchSviListici();
   };
-
   const handleCommentChange = (betId, content) => {
     setNewComments(prev => ({ ...prev, [betId]: content }));
   };
@@ -133,7 +134,7 @@ export default function ProTipsterDashboard() {
   const handleDeleteComment = async (commentId) => {
     const { error } = await supabase.from('comments').delete().eq('id', commentId);
     if (error) {
-      console.error('Greška pri brisanju komentara:', error);
+      console.error('Greška pri brisanju komentara:', error.message);
     } else {
       await fetchSviListici();
     }
@@ -143,16 +144,18 @@ export default function ProTipsterDashboard() {
     const alreadyLiked = likes[betId]?.some(l => l.user_id === userId);
     if (alreadyLiked) {
       const likeToRemove = likes[betId].find(l => l.user_id === userId);
-      if (likeToRemove) {
-        await supabase.from('likes').delete().eq('id', likeToRemove.id);
+      if (likeToRemove?.id) {
+        const { error } = await supabase.from('likes').delete().eq('id', likeToRemove.id);
+        if (error) console.error('Greška pri uklanjanju lajka:', error.message);
       }
     } else {
-      await supabase.from('likes').insert({
+      const { error } = await supabase.from('likes').insert({
         id: uuidv4(),
         bet_id: betId,
         user_id: userId,
         created_at: new Date(),
       });
+      if (error) console.error('Greška pri lajku:', error.message);
     }
     await fetchSviListici();
   };
@@ -165,7 +168,7 @@ export default function ProTipsterDashboard() {
       .eq('user_id', userId);
 
     if (error) {
-      console.error('Greška pri promjeni statusa:', error);
+      console.error('Greška pri promjeni statusa:', error.message);
     } else {
       await fetchSviListici();
       await fetchListici(userId);
