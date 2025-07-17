@@ -32,7 +32,12 @@ const AdminDashboard = () => {
       }
 
       const subscribers = profiles.filter(p => p.role === 'subscriber').length;
-      const activeSubscribers = profiles.filter(p => p.role === 'subscriber' && p.is_subscribed).length;
+
+      // === OVDJE DODANA PODRŠKA ZA "TRUE" KAO STRING ===
+      const activeSubscribers = profiles.filter(p =>
+        p.role === 'subscriber' && (p.is_subscribed === true || p.is_subscribed === 'TRUE')
+      ).length;
+
       const amateurTipsters = profiles.filter(p => p.role === 'amateur_tipster').length;
       const proTipsters = profiles.filter(p => p.role === 'pro_tipster').length;
       const influencers = profiles.filter(p => p.role === 'influencer').length;
