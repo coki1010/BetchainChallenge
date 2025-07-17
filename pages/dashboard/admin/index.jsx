@@ -15,18 +15,21 @@ const AdminDashboard = () => {
     referralStats: {},
     totalMonthlyCosts: 0,
     proPayments: [],
-    influencerPayments: []
+    influencerPayments: [],
+    proRequests: []
   });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchCounts = async () => {
       setLoading(true);
+
       const { data: profiles, error } = await supabase.from('profiles').select('*');
       if (error) {
         console.error('Error fetching profiles:', error);
         return;
       }
+
       const subscribers = profiles.filter(p => p.role === 'subscriber').length;
       const amateurTipsters = profiles.filter(p => p.role === 'amateur_tipster').length;
       const proTipsters = profiles.filter(p => p.role === 'pro_tipster').length;
@@ -49,7 +52,27 @@ const AdminDashboard = () => {
 
       const totalMonthlyCosts = [...proPayments, ...influencerPayments].reduce((sum, p) => sum + p.amount, 0);
 
-      setCounts({ subscribers, amateurTipsters, proTipsters, influencers, referralStats, totalMonthlyCosts, proPayments, influencerPayments });
+      const { data: proRequests, error: requestError } = await supabase
+        .from('pro_requests')
+        .select('*, profiles(nickname, email)')
+        .eq('status', 'pending');
+
+      if (requestError) {
+        console.error('Greška prilikom dohvaćanja zahtjeva za PRO:', requestError);
+      }
+
+      setCounts({
+        subscribers,
+        amateurTipsters,
+        proTipsters,
+        influencers,
+        referralStats,
+        totalMonthlyCosts,
+        proPayments,
+        influencerPayments,
+        proRequests: proRequests || []
+      });
+
       setLoading(false);
     };
 
@@ -91,6 +114,19 @@ const AdminDashboard = () => {
 
   const handleCreateChallenge = () => {
     router.push('/dashboard/admin/create-challenge');
+  };
+
+  const handleApproveRequest = async (userId) => {
+    await supabase.from('profiles').update({ role: 'pro_tipster' }).eq('id', userId);
+    await supabase.from('pro_requests').update({ status: 'approved' }).eq('user_id', userId);
+    alert('Zahtjev prihvaćen i korisnik postao PRO!');
+    location.reload();
+  };
+
+  const handleRejectRequest = async (userId) => {
+    await supabase.from('pro_requests').update({ status: 'rejected' }).eq('user_id', userId);
+    alert('Zahtjev odbijen.');
+    location.reload();
   };
 
   return (
@@ -148,6 +184,23 @@ const AdminDashboard = () => {
                 </ul>
               </div>
             </div>
+          </div>
+
+          <div className="pt-6">
+            <h2 className="text-xl font-semibold mb-2">Zahtjevi za PRO status</h2>
+            {counts?.proRequests?.length > 0 ? (
+              counts.proRequests.map(req => (
+                <div key={req.id} className="bg-[#1a1a1a] p-4 rounded mb-2">
+                  <p><strong>{req.profiles?.nickname || 'Nepoznat'}</strong> ({req.profiles?.email}) traži PRO status.</p>
+                  <div className="mt-2 flex gap-2">
+                    <Button onClick={() => handleApproveRequest(req.user_id)} className="bg-green-600">Prihvati</Button>
+                    <Button onClick={() => handleRejectRequest(req.user_id)} className="bg-red-600">Odbij</Button>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p>Nema novih zahtjeva.</p>
+            )}
           </div>
         </>
       )}
