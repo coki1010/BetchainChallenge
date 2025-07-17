@@ -79,6 +79,78 @@ export default function ProTipsterDashboard() {
     setLikes(groupedLikes);
   };
 
+  const handleChangePar = (index, field, value) => {
+    const updated = [...parovi];
+    updated[index][field] = value;
+    setParovi(updated);
+  };
+
+  const handleDodajPar = () => {
+    setParovi([...parovi, { par: '', kvota: '', tip: '' }]);
+  };
+
+  const handleUnosListica = async () => {
+    if (!naslov || !analiza || !ulog || parovi.length === 0) return alert('Popuni sva polja.');
+    const kvota = parseFloat(ukupnaKvota());
+    const noviListic = {
+      id: uuidv4(),
+      user_id: userId,
+      title: naslov,
+      analysis: analiza,
+      stake: parseFloat(ulog),
+      status: 'pending',
+      role: 'pro_tipster',
+      total_odds: kvota,
+      pairs: parovi,
+      created_at: new Date(),
+    };
+    const { error } = await supabase.from('bets').insert(noviListic);
+    if (error) return alert('Greška prilikom unosa.');
+    setParovi([{ par: '', kvota: '', tip: '' }]);
+    setNaslov('');
+    setAnaliza('');
+    setUlog('');
+    await fetchListici(userId);
+    await fetchSviListici();
+  };
+
+  const handleCommentChange = (betId, content) => {
+    setNewComments(prev => ({ ...prev, [betId]: content }));
+  };
+
+  const handleAddComment = async (betId) => {
+    const content = newComments[betId];
+    if (!content) return;
+    const newComment = {
+      id: uuidv4(),
+      bet_id: betId,
+      user_id: userId,
+      nickname,
+      content,
+      created_at: new Date(),
+    };
+    await supabase.from('comments').insert(newComment);
+    setNewComments(prev => ({ ...prev, [betId]: '' }));
+    await fetchSviListici();
+  };
+
+  const handleDeleteComment = async (commentId) => {
+    await supabase.from('comments').delete().eq('id', commentId);
+    await fetchSviListici();
+  };
+
+  const handleLike = async (betId) => {
+    const alreadyLiked = likes[betId]?.some(l => l.user_id === userId);
+    if (alreadyLiked) return;
+    await supabase.from('likes').insert({
+      id: uuidv4(),
+      bet_id: betId,
+      user_id: userId,
+      created_at: new Date(),
+    });
+    await fetchSviListici();
+  };
+
   const handleChangeStatus = async (id, newStatus) => {
     await supabase.from('bets').update({ status: newStatus }).eq('id', id).eq('user_id', userId);
     await fetchSviListici();
