@@ -153,7 +153,7 @@ const AdminDashboard = () => {
               <CardHeader><CardTitle className="!text-black">Aktivni pretplatnici</CardTitle></CardHeader>
               <CardContent><p className="text-xl !text-black">{counts.activeSubscribers}</p></CardContent>
             </Card>
-            <Card className="!bg-[#1a1a1a] !text-black">
+            <Card className="bg-[#1a1a1a] !text-black">
               <CardHeader><CardTitle className="!text-black">Amaterski tipsteri</CardTitle></CardHeader>
               <CardContent><p className="text-xl !text-black">{counts.amateurTipsters}</p></CardContent>
             </Card>
