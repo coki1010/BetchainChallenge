@@ -26,6 +26,8 @@ const AdminDashboard = () => {
       setLoading(true);
 
       const { data: profiles, error } = await supabase.from('profiles').select('*');
+      console.log("🚀 PROFILI:", profiles);
+
       if (error) {
         console.error('Error fetching profiles:', error);
         return;
@@ -137,6 +139,11 @@ const AdminDashboard = () => {
   return (
     <div className="p-6 space-y-4 bg-[#0f0f0f] text-white min-h-screen">
       <h1 className="text-2xl font-bold">Admin Dashboard</h1>
+
+      {/* DEBUG PRIKAZ COUNT OBJEKTA */}
+      <pre className="text-white text-sm bg-black p-2 rounded overflow-x-auto">
+        {JSON.stringify(counts, null, 2)}
+      </pre>
 
       {loading ? (
         <p>Loading...</p>
