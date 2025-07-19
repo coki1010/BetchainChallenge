@@ -17,7 +17,6 @@ export default function AmateurTipsterDashboard() {
   const [comments, setComments] = useState({});
   const [likes, setLikes] = useState({});
   const [newComments, setNewComments] = useState({});
-  const [expandedComments, setExpandedComments] = useState({});
   const [expandedPro, setExpandedPro] = useState(true);
   const [expandedAmateur, setExpandedAmateur] = useState(true);
   const [showProRequest, setShowProRequest] = useState(false);
@@ -32,13 +31,16 @@ export default function AmateurTipsterDashboard() {
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('nickname, is_subscribed')
+        .select('nickname, is_subscribed, subscribed_until')
         .eq('id', user.id)
         .single();
 
       if (profile) {
         setNickname(profile.nickname);
-        if (!profile.is_subscribed) {
+        const now = new Date();
+        const until = profile.subscribed_until ? new Date(profile.subscribed_until) : null;
+
+        if (!profile.is_subscribed || !until || until < now) {
           setAccessDenied(true);
           return;
         }
