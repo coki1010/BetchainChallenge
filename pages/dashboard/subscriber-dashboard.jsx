@@ -28,15 +28,15 @@ const SubscriberDashboard = () => {
 
       const { data: profileData } = await supabase
         .from('profiles')
-        .select('is_subscribed, nickname, subscribed_until')
+        .select('is_subscribed, subscribed_until, nickname')
         .eq('id', user.id)
         .single();
 
-      const isValid =
-        profileData?.is_subscribed === true &&
-        new Date(profileData.subscribed_until) > new Date();
+      const subscribedUntil = new Date(profileData?.subscribed_until);
+      const today = new Date();
+      const isStillSubscribed = profileData?.is_subscribed && subscribedUntil > today;
 
-      setHasSubscription(isValid);
+      setHasSubscription(isStillSubscribed);
       setNickname(profileData?.nickname || '');
 
       const { data: betsData } = await supabase
@@ -177,7 +177,12 @@ const SubscriberDashboard = () => {
     return (
       <div className="p-6 text-white">
         <h2 className="text-lg">Nemate aktivnu pretplatu.</h2>
-        <a href="https://buy.stripe.com/cNi7sL1cr9NFaka2pg9R601" target="_blank" rel="noopener noreferrer" className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded inline-block mt-4">
+        <a
+          href="https://buy.stripe.com/cNi7sL1cr9NFaka2pg9R601"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded inline-block mt-4"
+        >
           Aktiviraj pretplatu
         </a>
       </div>
@@ -185,8 +190,9 @@ const SubscriberDashboard = () => {
   }
 
   return (
-    // ... ostatak koda ostaje isti
-    // (već si to dao i NIŠTA drugo ne mijenjamo)
+    <div className="min-h-screen bg-[#0f0f0f] text-white p-6">
+      {/* ... ostatak sadržaja (rang liste, listići, itd.) */}
+    </div>
   );
 };
 
