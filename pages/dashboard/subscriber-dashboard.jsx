@@ -28,10 +28,15 @@ const SubscriberDashboard = () => {
 
       const { data: profileData } = await supabase
         .from('profiles')
-        .select('is_subscribed, nickname')
+        .select('is_subscribed, nickname, subscribed_until')
         .eq('id', user.id)
         .single();
-      setHasSubscription(profileData?.is_subscribed === true);
+
+      const isValid =
+        profileData?.is_subscribed === true &&
+        new Date(profileData.subscribed_until) > new Date();
+
+      setHasSubscription(isValid);
       setNickname(profileData?.nickname || '');
 
       const { data: betsData } = await supabase
@@ -180,45 +185,8 @@ const SubscriberDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#0f0f0f] text-white p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Dashboard</h1>
-        <div className="flex gap-4 items-center">
-          <input
-            type="text"
-            placeholder="Pretraži tipstera..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="bg-[#1a1a1a] text-white px-2 py-1 rounded"
-          />
-          <button onClick={handleLogout} className="bg-red-500 px-4 py-1 rounded text-white">Odjava</button>
-        </div>
-      </div>
-
-      <h2 className="text-xl font-semibold mb-2">🏆 Rang lista PRO tipstera</h2>
-      {proRankings.map((p, idx) => (
-        <p key={p.id}>{idx + 1}. {p.nickname} - €{p.saldo.toFixed(2)}</p>
-      ))}
-
-      <h2 className="text-xl font-semibold mt-6 mb-2">🎯 Rang lista amaterskih tipstera</h2>
-      {amateurRankings.map((p, idx) => (
-        <p key={p.id}>{idx + 1}. {p.nickname} - €{p.saldo.toFixed(2)}</p>
-      ))}
-
-      <div className="mt-6">
-        <button onClick={() => setShowProBets(!showProBets)} className="text-lg font-semibold text-blue-400">
-          📄 Listići PRO tipstera {showProBets ? '▲' : '▼'}
-        </button>
-        {showProBets && filteredBets.filter(b => b.profiles?.role === 'pro_tipster').map(renderBet)}
-      </div>
-
-      <div className="mt-6">
-        <button onClick={() => setShowAmateurBets(!showAmateurBets)} className="text-lg font-semibold text-green-400">
-          📄 Listići amaterskih tipstera {showAmateurBets ? '▲' : '▼'}
-        </button>
-        {showAmateurBets && filteredBets.filter(b => b.profiles?.role === 'amateur_tipster').map(renderBet)}
-      </div>
-    </div>
+    // ... ostatak koda ostaje isti
+    // (već si to dao i NIŠTA drugo ne mijenjamo)
   );
 };
 
