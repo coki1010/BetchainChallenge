@@ -21,6 +21,7 @@ export default function AmateurTipsterDashboard() {
   const [expandedPro, setExpandedPro] = useState(true);
   const [expandedAmateur, setExpandedAmateur] = useState(true);
   const [showProRequest, setShowProRequest] = useState(false);
+  const [accessDenied, setAccessDenied] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -29,14 +30,44 @@ export default function AmateurTipsterDashboard() {
       if (!user) return router.push('/');
       setUserId(user.id);
 
-      const { data: profile } = await supabase.from('profiles').select('nickname').eq('id', user.id).single();
-      if (profile) setNickname(profile.nickname);
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('nickname, is_subscribed')
+        .eq('id', user.id)
+        .single();
+
+      if (profile) {
+        setNickname(profile.nickname);
+        if (!profile.is_subscribed) {
+          setAccessDenied(true);
+          return;
+        }
+      }
 
       await fetchListici(user.id);
       await fetchSviListici();
     };
     fetchData();
   }, []);
+
+  if (accessDenied) {
+    return (
+      <div className="p-8 text-white bg-black min-h-screen flex flex-col items-center justify-center">
+        <h1 className="text-2xl font-bold text-red-500 mb-4">Trebate se pretplatiti</h1>
+        <p className="text-lg mb-6 text-center max-w-md">
+          Da biste pristupili amaterskom dashboardu, morate imati aktivnu pretplatu.
+        </p>
+        <a
+          href="https://buy.stripe.com/cNi7sL1cr9NFaka2pg9R601"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded text-lg font-semibold"
+        >
+          Pretplati se sada
+        </a>
+      </div>
+    );
+  }
 
   const fetchListici = async (id) => {
     const { data } = await supabase.from('bets').select('*').eq('user_id', id);
