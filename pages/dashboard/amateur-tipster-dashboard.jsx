@@ -1,3 +1,4 @@
+// AmateurTipsterDashboard.jsx
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/customSupabaseClient';
 import { useRouter } from 'next/router';
@@ -28,13 +29,7 @@ export default function AmateurTipsterDashboard() {
       if (!user) return router.push('/');
       setUserId(user.id);
 
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('nickname, is_subscribed')
-        .eq('id', user.id)
-        .single();
-
-      if (!profile?.is_subscribed) return router.push('/');
+      const { data: profile } = await supabase.from('profiles').select('nickname').eq('id', user.id).single();
       if (profile) setNickname(profile.nickname);
 
       await fetchListici(user.id);
