@@ -220,7 +220,7 @@ const SubscriberDashboard = () => {
       <p className="mt-1">{t('stake')}: €{bet.stake} | {t('odds')}: {bet.total_odds}</p>
       <p className="mt-1 font-semibold">{t('status')}: {bet.status}</p>
       <button onClick={() => handleLike(bet.id)} className="text-blue-400 text-sm mt-2">
-        {likes[bet.id]?.includes(user.id) ? ${t('unlike')} : ${t('like')}} ({likes[bet.id]?.length || 0})
+        {likes[bet.id]?.includes(user.id) ? t('unlike') : t('like')} ({likes[bet.id]?.length || 0})
       </button>
       <div className="mt-3">
         <input
