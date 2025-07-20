@@ -4,9 +4,9 @@ import { supabase } from '@/lib/customSupabaseClient';
 
 const translations = {
   en: { login: 'Login', register: 'Register', email: 'Email', password: 'Password', role: 'Role', subscriber: 'Subscriber', amateur_tipster: 'Amateur Tipster', submit_login: 'Login', submit_register: 'Register', no_account: "Don't have an account?", have_account: "Already have an account?", switch_to_register: 'Register here', switch_to_login: 'Login here', contact_us: 'Contact Us', name: 'Name', message: 'Message', send: 'Send Message', logout: 'Logout', nickname: 'Nickname' },
-  hr: { login: 'Prijava', register: 'Registracija', email: 'Email', password: 'Lozinka', role: 'Uloga', subscriber: 'Pretplatnik', amateur_tipster: 'Amaterski tipster', submit_login: 'Prijavi se', submit_register: 'Registriraj se', no_account: 'Nemaš račun?', have_account: 'Imaš račun?', switch_to_register: 'Registriraj se', switch_to_login: 'Prijavi se', contact_us: 'Kontaktiraj nas', name: 'Ime', message: 'Poruka', send: 'Pošalji poruku', logout: 'Odjava', nickname: 'Nadimak' },
-  srb: { login: 'Prijava', register: 'Registracija', email: 'Email', password: 'Lozinka', role: 'Uloga', subscriber: 'Pretplatnik', amateur_tipster: 'Amaterski tipster', submit_login: 'Prijavi se', submit_register: 'Registruj se', no_account: 'Nemaš nalog?', have_account: 'Imaš nalog?', switch_to_register: 'Registruj se', switch_to_login: 'Prijavi se', contact_us: 'Kontaktiraj nas', name: 'Ime', message: 'Poruka', send: 'Pošalji poruku', logout: 'Odjavi se', nickname: 'Nadimak' },
-  slo: { login: 'Prijava', register: 'Registracija', email: 'Email', password: 'Geslo', role: 'Vloga', subscriber: 'Naročnik', amateur_tipster: 'Amaterski tipster', submit_login: 'Prijava', submit_register: 'Registracija', no_account: 'Nimate račun?', have_account: 'Imate račun?', switch_to_register: 'Registriraj se', switch_to_login: 'Prijavi se', contact_us: 'Kontaktirajte nas', name: 'Ime', message: 'Sporočilo', send: 'Pošlji sporočilo', logout: 'Odjava', nickname: 'Vzdevek' },
+  hr: { login: 'Prijava', register: 'Registracija', email: 'Email', password: 'Lozinka', role: 'Uloga', subscriber: 'Pretplatnik', amateur_tipster: 'Amaterski tipster', submit_login: 'Prijavi se', submit_register: 'Registriraj se', no_account: 'Nemaš račun?', have_account: 'Imaš račun?', switch_to_register: 'Registriraj se', switch_to_login: 'Prijavi se', contact_us: 'Kontakt', name: 'Ime', message: 'Poruka', send: 'Pošalji poruku', logout: 'Odjava', nickname: 'Nadimak' },
+  srb: { login: 'Prijava', register: 'Registracija', email: 'Email', password: 'Lozinka', role: 'Uloga', subscriber: 'Pretplatnik', amateur_tipster: 'Amaterski tipster', submit_login: 'Prijavi se', submit_register: 'Registruj se', no_account: 'Nemaš nalog?', have_account: 'Imaš nalog?', switch_to_register: 'Registruj se', switch_to_login: 'Prijavi se', contact_us: 'Kontakt', name: 'Ime', message: 'Poruka', send: 'Pošalji poruku', logout: 'Odjavi se', nickname: 'Nadimak' },
+  slo: { login: 'Prijava', register: 'Registracija', email: 'Email', password: 'Geslo', role: 'Vloga', subscriber: 'Naročnik', amateur_tipster: 'Amaterski tipster', submit_login: 'Prijava', submit_register: 'Registracija', no_account: 'Nimate račun?', have_account: 'Imate račun?', switch_to_register: 'Registriraj se', switch_to_login: 'Prijavi se', contact_us: 'Kontakt', name: 'Ime', message: 'Sporočilo', send: 'Pošlji sporočilo', logout: 'Odjava', nickname: 'Vzdevek' },
 };
 
 const LoginRegister = () => {
@@ -111,16 +111,9 @@ const LoginRegister = () => {
         </p>
       </div>
 
-      <div className="mt-10 w-full max-w-md">
+      <div className="mt-10 w-full max-w-md text-center">
         <h3 className="text-lg font-bold mb-2">{t.contact_us}</h3>
-        <form method="POST" action="/api/contact" className="space-y-4">
-          <input name="name" placeholder={t.name} required className="w-full px-4 py-2 bg-[#2a2a2a] text-white rounded" />
-          <input name="email" type="email" placeholder={t.email} required className="w-full px-4 py-2 bg-[#2a2a2a] text-white rounded" />
-          <textarea name="message" placeholder={t.message} required className="w-full px-4 py-2 bg-[#2a2a2a] text-white rounded" rows="4" />
-          <button type="submit" className="w-full bg-green-600 hover:bg-green-700 py-2 rounded font-semibold">
-            {t.send}
-          </button>
-        </form>
+        <p className="text-gray-300">Contact: <a href="mailto:info@betchainchallenge.com" className="underline text-blue-400">info@betchainchallenge.com</a></p>
       </div>
     </div>
   );
