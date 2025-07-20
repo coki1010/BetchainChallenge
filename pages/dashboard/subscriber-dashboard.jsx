@@ -1,5 +1,3 @@
-// subscriber-dashboard.jsx
-
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useRouter } from 'next/router';
@@ -20,10 +18,12 @@ const translations = {
     delete: "Delete",
     unknown: "Unknown",
     pro_bets: "Pro Tipster Bets",
-    am_bets: "Amateur Tipster Bets",
-    pro_table: "Top Pro Tipsters",
-    am_table: "Top Amateur Tipsters",
-    search_placeholder: "Search by nickname..."
+    amateur_bets: "Amateur Tipster Bets",
+    best_pro: "Top Pro Tipsters",
+    best_amateur: "Top Amateur Tipsters",
+    toggle_tables: "Show/Hide Leaderboards",
+    logout: "Logout",
+    search_placeholder: "Search by nickname...",
   },
   hr: {
     no_subscription: "Nemate aktivnu pretplatu.",
@@ -40,10 +40,12 @@ const translations = {
     delete: "Obriši",
     unknown: "Nepoznat",
     pro_bets: "Listići pro tipstera",
-    am_bets: "Listići amaterskih tipstera",
-    pro_table: "Najbolji pro tipsteri",
-    am_table: "Najbolji amaterski tipsteri",
-    search_placeholder: "Pretraži po nadimku..."
+    amateur_bets: "Listići amaterskih tipstera",
+    best_pro: "Najbolji pro tipsteri",
+    best_amateur: "Najbolji amaterski tipsteri",
+    toggle_tables: "Prikaži/sakrij tablice",
+    logout: "Odjava",
+    search_placeholder: "Pretraži po nadimku...",
   },
   sr: {
     no_subscription: "Nemate aktivnu pretplatu.",
@@ -60,10 +62,12 @@ const translations = {
     delete: "Obriši",
     unknown: "Nepoznat",
     pro_bets: "Listići pro tipstera",
-    am_bets: "Listići amaterskih tipstera",
-    pro_table: "Najbolji pro tipsteri",
-    am_table: "Najbolji amaterski tipsteri",
-    search_placeholder: "Pretraga po nadimku..."
+    amateur_bets: "Listići amaterskih tipstera",
+    best_pro: "Najbolji pro tipsteri",
+    best_amateur: "Najbolji amaterski tipsteri",
+    toggle_tables: "Prikaži/sakrij tabele",
+    logout: "Odjava",
+    search_placeholder: "Pretraži po nadimku...",
   },
   sl: {
     no_subscription: "Nimate aktivne naročnine.",
@@ -79,11 +83,13 @@ const translations = {
     send: "Pošlji",
     delete: "Izbriši",
     unknown: "Neznano",
-    pro_bets: "Listki pro tipsterjev",
-    am_bets: "Listki amaterskih tipsterjev",
-    pro_table: "Najboljši pro tipsterji",
-    am_table: "Najboljši amaterski tipsterji",
-    search_placeholder: "Išči po vzdevku..."
+    pro_bets: "Stavke pro tipsterjev",
+    amateur_bets: "Stavke amaterskih tipsterjev",
+    best_pro: "Najboljši pro tipsterji",
+    best_amateur: "Najboljši amaterski tipsterji",
+    toggle_tables: "Pokaži/skrij lestvice",
+    logout: "Odjava",
+    search_placeholder: "Išči po vzdevku...",
   },
 };
 
@@ -103,9 +109,8 @@ const SubscriberDashboard = () => {
   const [proRankings, setProRankings] = useState([]);
   const [amateurRankings, setAmateurRankings] = useState([]);
   const [showProBets, setShowProBets] = useState(true);
-  const [showAmBets, setShowAmBets] = useState(true);
-  const [showProTable, setShowProTable] = useState(true);
-  const [showAmTable, setShowAmTable] = useState(true);
+  const [showAmateurBets, setShowAmateurBets] = useState(true);
+  const [showTables, setShowTables] = useState(true);
 
   useEffect(() => {
     const storedLang = localStorage.getItem('language') || 'en';
@@ -122,16 +127,17 @@ const SubscriberDashboard = () => {
         .eq('id', user.id)
         .single();
 
-      const isSub = profileData?.is_subscribed &&
-        new Date(profileData.subscribed_until) > new Date();
-      setHasSubscription(isSub);
+      const subscribedUntil = new Date(profileData?.subscribed_until);
+      const today = new Date();
+      const isStillSubscribed = profileData?.is_subscribed && subscribedUntil > today;
+
+      setHasSubscription(isStillSubscribed);
       setNickname(profileData?.nickname || '');
 
       const { data: betsData } = await supabase
         .from('bets')
         .select('*, profiles(id, nickname, role)')
         .order('created_at', { ascending: false });
-
       setBets(betsData || []);
 
       const { data: likesData } = await supabase.from('likes').select('*');
@@ -154,39 +160,82 @@ const SubscriberDashboard = () => {
       });
       setComments(commentMap);
 
-      const { data: profiles } = await supabase.from('profiles').select('id, nickname, role');
+      const { data: allProfiles } = await supabase.from('profiles').select('id, nickname, role');
       const balances = {};
-      betsData.forEach((b) => {
-        const id = b.user_id;
-        if (!balances[id]) balances[id] = 10000;
-        if (b.status === 'win') balances[id] += b.stake * b.total_odds;
-        if (b.status === 'lose') balances[id] -= b.stake;
+      betsData.forEach(bet => {
+        const uid = bet.user_id;
+        if (!balances[uid]) balances[uid] = 10000;
+        if (bet.status === 'win') {
+          balances[uid] += bet.stake * bet.total_odds;
+        } else if (bet.status === 'lose') {
+          balances[uid] -= bet.stake;
+        }
       });
-
-      const pro = [], am = [];
-      profiles.forEach(p => {
+      const pro = [], amateur = [];
+      allProfiles.forEach(p => {
         const saldo = balances[p.id] || 10000;
         if (p.role === 'pro_tipster') pro.push({ ...p, saldo });
-        if (p.role === 'amateur_tipster') am.push({ ...p, saldo });
+        if (p.role === 'amateur_tipster') amateur.push({ ...p, saldo });
       });
-
       setProRankings(pro.sort((a, b) => b.saldo - a.saldo));
-      setAmateurRankings(am.sort((a, b) => b.saldo - a.saldo));
+      setAmateurRankings(amateur.sort((a, b) => b.saldo - a.saldo));
     };
 
     fetchData();
   }, []);
 
   const handleLanguageChange = (e) => {
-    const selected = e.target.value;
-    setLang(selected);
-    localStorage.setItem('language', selected);
+    const selectedLang = e.target.value;
+    setLang(selectedLang);
+    localStorage.setItem('language', selectedLang);
   };
 
-  const filteredBets = bets.filter(b =>
-    b.profiles?.nickname?.toLowerCase().includes(searchTerm.toLowerCase()) &&
-    ((showProBets && b.profiles?.role === 'pro_tipster') ||
-     (showAmBets && b.profiles?.role === 'amateur_tipster'))
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push('/');
+  };
+
+  const handleLike = async (betId) => {
+    if (!user) return;
+    const alreadyLiked = likes[betId]?.includes(user.id);
+    if (alreadyLiked) {
+      await supabase.from('likes').delete().eq('user_id', user.id).eq('bet_id', betId);
+      setLikes(prev => ({
+        ...prev,
+        [betId]: prev[betId].filter(id => id !== user.id)
+      }));
+    } else {
+      await supabase.from('likes').insert({ user_id: user.id, bet_id: betId });
+      setLikes(prev => ({
+        ...prev,
+        [betId]: [...(prev[betId] || []), user.id]
+      }));
+    }
+  };
+
+  const handleCommentSubmit = async (betId) => {
+    const text = newComments[betId]?.trim();
+    if (!text) return;
+    await supabase
+      .from('comments')
+      .insert({ user_id: user.id, bet_id: betId, content: text, nickname });
+    const { data: updated } = await supabase
+      .from('comments')
+      .select('id, content, nickname, user_id, bet_id, created_at')
+      .eq('bet_id', betId)
+      .order('created_at', { ascending: true });
+    setComments(prev => ({ ...prev, [betId]: updated }));
+    setNewComments(prev => ({ ...prev, [betId]: '' }));
+  };
+
+  const handleCommentDelete = async (commentId, betId) => {
+    await supabase.from('comments').delete().eq('id', commentId);
+    const updated = (comments[betId] || []).filter(c => c.id !== commentId);
+    setComments(prev => ({ ...prev, [betId]: updated }));
+  };
+
+  const filteredBets = bets.filter(bet =>
+    bet.profiles?.nickname?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const renderBet = (bet) => (
@@ -223,37 +272,17 @@ const SubscriberDashboard = () => {
     </div>
   );
 
-  const handleCommentSubmit = async (betId) => {
-    const text = newComments[betId]?.trim();
-    if (!text) return;
-    const { error } = await supabase.from('comments').insert({ user_id: user.id, bet_id: betId, content: text, nickname });
-    if (!error) {
-      const { data } = await supabase
-        .from('comments')
-        .select('*')
-        .eq('bet_id', betId)
-        .order('created_at', { ascending: true });
-      setComments(prev => ({ ...prev, [betId]: data }));
-      setNewComments(prev => ({ ...prev, [betId]: '' }));
-    }
-  };
-
-  const handleCommentDelete = async (commentId, betId) => {
-    await supabase.from('comments').delete().eq('id', commentId);
-    const updated = (comments[betId] || []).filter(c => c.id !== commentId);
-    setComments(prev => ({ ...prev, [betId]: updated }));
-  };
-
   if (!hasSubscription) {
     return (
       <div className="p-6 text-white">
-        <div className="flex justify-end mb-4">
+        <div className="flex justify-end mb-4 space-x-2">
           <select value={lang} onChange={handleLanguageChange} className="bg-[#2a2a2a] text-white px-3 py-1 rounded">
             <option value="en">English</option>
             <option value="hr">Hrvatski</option>
             <option value="sr">Srpski</option>
             <option value="sl">Slovenski</option>
           </select>
+          <button onClick={handleLogout} className="bg-red-600 text-white px-3 py-1 rounded">{t('logout')}</button>
         </div>
         <h2 className="text-lg">{t('no_subscription')}</h2>
         <a
@@ -270,60 +299,58 @@ const SubscriberDashboard = () => {
 
   return (
     <div className="min-h-screen bg-[#0f0f0f] text-white p-6">
-      <div className="flex justify-between items-center mb-4">
-        <select value={lang} onChange={handleLanguageChange} className="bg-[#2a2a2a] text-white px-3 py-1 rounded">
-          <option value="en">English</option>
-          <option value="hr">Hrvatski</option>
-          <option value="sr">Srpski</option>
-          <option value="sl">Slovenski</option>
-        </select>
-        <input
-          type="text"
-          placeholder={t('search_placeholder')}
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="bg-[#2a2a2a] text-white px-3 py-1 rounded ml-4"
-        />
+      <div className="flex justify-between mb-4">
+        <div className="space-x-2">
+          <button onClick={() => setShowProBets(!showProBets)} className="px-2 py-1 bg-[#2a2a2a] rounded">{t('pro_bets')}</button>
+          <button onClick={() => setShowAmateurBets(!showAmateurBets)} className="px-2 py-1 bg-[#2a2a2a] rounded">{t('amateur_bets')}</button>
+          <button onClick={() => setShowTables(!showTables)} className="px-2 py-1 bg-[#2a2a2a] rounded">{t('toggle_tables')}</button>
+        </div>
+        <div className="space-x-2 flex">
+          <input
+            type="text"
+            placeholder={t('search_placeholder')}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="px-2 py-1 bg-[#2a2a2a] rounded text-white"
+          />
+          <select value={lang} onChange={handleLanguageChange} className="bg-[#2a2a2a] text-white px-2 py-1 rounded">
+            <option value="en">EN</option>
+            <option value="hr">HR</option>
+            <option value="sr">SR</option>
+            <option value="sl">SL</option>
+          </select>
+          <button onClick={handleLogout} className="bg-red-600 px-2 py-1 rounded text-white">{t('logout')}</button>
+        </div>
       </div>
 
-      <div className="mb-4 space-x-2">
-        <button onClick={() => setShowProBets(!showProBets)} className="bg-blue-700 px-4 py-1 rounded">
-          {t('pro_bets')}
-        </button>
-        <button onClick={() => setShowAmBets(!showAmBets)} className="bg-green-700 px-4 py-1 rounded">
-          {t('am_bets')}
-        </button>
-        <button onClick={() => setShowProTable(!showProTable)} className="bg-purple-700 px-4 py-1 rounded">
-          {t('pro_table')}
-        </button>
-        <button onClick={() => setShowAmTable(!showAmTable)} className="bg-yellow-700 px-4 py-1 rounded">
-          {t('am_table')}
-        </button>
-      </div>
-
-      {showProTable && (
-        <div className="mb-4">
-          <h3 className="font-bold">{t('pro_table')}</h3>
-          <ul className="text-sm">
-            {proRankings.map((p, i) => (
-              <li key={i}>{i + 1}. {p.nickname} – €{p.saldo.toFixed(2)}</li>
-            ))}
-          </ul>
+      {showTables && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div>
+            <h3 className="text-xl font-bold mb-2">{t('best_pro')}</h3>
+            <ul className="bg-[#1a1a1a] rounded p-3 space-y-1">
+              {proRankings.map((p, i) => (
+                <li key={i}>{i + 1}. {p.nickname} - €{p.saldo.toFixed(2)}</li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <h3 className="text-xl font-bold mb-2">{t('best_amateur')}</h3>
+            <ul className="bg-[#1a1a1a] rounded p-3 space-y-1">
+              {amateurRankings.map((p, i) => (
+                <li key={i}>{i + 1}. {p.nickname} - €{p.saldo.toFixed(2)}</li>
+              ))}
+            </ul>
+          </div>
         </div>
       )}
 
-      {showAmTable && (
-        <div className="mb-4">
-          <h3 className="font-bold">{t('am_table')}</h3>
-          <ul className="text-sm">
-            {amateurRankings.map((p, i) => (
-              <li key={i}>{i + 1}. {p.nickname} – €{p.saldo.toFixed(2)}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {filteredBets.map(renderBet)}
+      {filteredBets.map(bet => {
+        const role = bet.profiles?.role;
+        if ((role === 'pro_tipster' && showProBets) || (role === 'amateur_tipster' && showAmateurBets)) {
+          return renderBet(bet);
+        }
+        return null;
+      })}
     </div>
   );
 };
