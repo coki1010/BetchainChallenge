@@ -1,3 +1,4 @@
+// AmateurTipsterDashboard.jsx
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/customSupabaseClient';
 import { useRouter } from 'next/router';
@@ -20,13 +21,9 @@ export default function AmateurTipsterDashboard() {
   const [expandedAmateur, setExpandedAmateur] = useState(true);
   const [showProRequest, setShowProRequest] = useState(false);
   const [accessDenied, setAccessDenied] = useState(false);
-  const [language, setLanguage] = useState('en');
   const router = useRouter();
 
   useEffect(() => {
-    const storedLang = localStorage.getItem('language') || 'en';
-    setLanguage(storedLang);
-
     const fetchData = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return router.push('/');
@@ -55,23 +52,9 @@ export default function AmateurTipsterDashboard() {
     fetchData();
   }, []);
 
-  const handleLanguageChange = (e) => {
-    const selectedLang = e.target.value;
-    setLanguage(selectedLang);
-    localStorage.setItem('language', selectedLang);
-  };
-
   if (accessDenied) {
     return (
       <div className="p-8 text-white bg-black min-h-screen flex flex-col items-center justify-center">
-        <div className="absolute top-4 right-4">
-          <select value={language} onChange={handleLanguageChange} className="bg-gray-800 text-white px-2 py-1 rounded">
-            <option value="en">English</option>
-            <option value="hr">Hrvatski</option>
-            <option value="sr">Srpski</option>
-            <option value="sl">Slovenski</option>
-          </select>
-        </div>
         <h1 className="text-2xl font-bold text-red-500 mb-4">Trebate se pretplatiti</h1>
         <p className="text-lg mb-6 text-center max-w-md">
           Da biste pristupili amaterskom dashboardu, morate imati aktivnu pretplatu.
@@ -257,15 +240,7 @@ export default function AmateurTipsterDashboard() {
     <div className="p-4 text-white bg-black min-h-screen">
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-bold">Amaterski Tipster Dashboard</h1>
-        <div className="flex gap-4 items-center">
-          <select value={language} onChange={handleLanguageChange} className="bg-gray-800 text-white px-2 py-1 rounded">
-            <option value="en">English</option>
-            <option value="hr">Hrvatski</option>
-            <option value="sr">Srpski</option>
-            <option value="sl">Slovenski</option>
-          </select>
-          <button onClick={handleLogout} className="bg-red-600 px-4 py-2 rounded">Odjava</button>
-        </div>
+        <button onClick={handleLogout} className="bg-red-600 px-4 py-2 rounded">Odjava</button>
       </div>
 
       <h2 className="text-lg mt-2">Tvoj saldo: <span className="font-bold text-yellow-400">{saldo.toFixed(2)}€</span></h2>
