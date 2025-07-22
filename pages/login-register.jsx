@@ -112,7 +112,7 @@ const LoginRegister = () => {
       </div>
 
       <div className="mt-10 w-full max-w-md text-center">
-        <p className="text-gray-300">Contact: info@betchainchallenge.com</p>
+        <p className="text-gray-300">Contact:info@betchainchallenge.com</p>
       </div>
     </div>
   );
