@@ -112,8 +112,7 @@ const LoginRegister = () => {
       </div>
 
       <div className="mt-10 w-full max-w-md text-center">
-        <h3 className="text-lg font-bold mb-2">{t.contact_us}</h3>
-        <p className="text-gray-300">Contact: <a href="mailto:info@betchainchallenge.com" className="underline text-blue-400">info@betchainchallenge.com</a></p>
+        <p className="text-gray-300">Contact: info@betchainchallenge.com</p>
       </div>
     </div>
   );
