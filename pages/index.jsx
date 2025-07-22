@@ -40,14 +40,10 @@ const Home = () => {
           </div>
         </section>
 
-        <section id="contact" className="bg-[#1a1a1a] p-6 rounded-xl max-w-xl mx-auto">
-          <h3 className="text-xl font-bold mb-4">Contact Us</h3>
-          <form method="POST" action="/api/send-contact-email" className="space-y-4">
-            <input name="name" placeholder="Your name" required className="w-full p-2 bg-[#2a2a2a] text-white rounded" />
-            <input name="email" type="email" placeholder="Email" required className="w-full p-2 bg-[#2a2a2a] text-white rounded" />
-            <textarea name="message" placeholder="Message" required rows="4" className="w-full p-2 bg-[#2a2a2a] text-white rounded" />
-            <button type="submit" className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded">Send Message</button>
-          </form>
+        {/* Kontakt sekcija s tekstom umjesto forme */}
+        <section id="contact" className="bg-[#1a1a1a] p-6 rounded-xl max-w-xl mx-auto text-center">
+          <h3 className="text-xl font-bold mb-2">Contact</h3>
+          <p className="text-gray-300">info@betchainchallenge.com</p>
         </section>
       </main>
 
