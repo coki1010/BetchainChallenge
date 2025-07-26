@@ -78,7 +78,7 @@ export default function AmateurTipsterDashboard() {
       let win = 0, total = 0;
       data.forEach(bet => {
         if (bet.status === 'win') {
-          saldoTemp += bet.stake * bet.total_odds - bet.Stake;
+          saldoTemp += bet.stake * (bet.total_odds - 1);
           win++;
           total++;
         } else if (bet.status === 'lose') {
