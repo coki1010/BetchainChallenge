@@ -42,7 +42,7 @@ export default function ProTipsterDashboard() {
       let saldoTemp = 10000;
       data.forEach(bet => {
         if (bet.status === 'win') {
-          saldoTemp += bet.stake * bet.total_odds - bet.Stake;
+          saldoTemp += bet.stake * (bet.total_odds - 1);
         } else if (bet.status === 'lose') {
           saldoTemp -= bet.stake;
         }
